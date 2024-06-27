@@ -16,7 +16,7 @@ const Students = () => {
   const [chats, setChats] = useState([]);
   const [searchParams] = useSearchParams();
   const [enableRoom, setEnableRoom] = useState(false);
-  const [client, setClient] = useState('Anonymous');
+  const [client, setClient] = useState('Anonymousee');
   const [active, setActive] = useState({
     name: 'Utama',
     token: 46150,
@@ -30,32 +30,17 @@ const Students = () => {
   const [helpdeskRoom, setHelpdeskRoom] = useState({});
   const [helpdeskAccount, setHelpdeskAccount] = useState({});
 
-  const getRooms = async () => {
-    await axios.get('http://localhost:3000/rooms')
-      .then((response) => {
-        console.log(response.data);
-        setRooms(response.data);
-      })
-      .catch((error) => {
-        console.log(error);
-      })
-  }
-
-  const getChats = async () => {
-    await axios.get('http://localhost:3000/chats')
-      .then((response) => {
-        console.log(response.data);
-        setChats(response.data);
-      })
-      .catch((error) => {
-        console.log(error);
-      })
-  }
 
   const checkActive = () => {
+    const queryParams = searchParams.get("room");
+    const roomParams = queryParams;
+    setClient(roomParams)
     const room = localStorage.getItem('HELPDESK:room');
     const account = localStorage.getItem('HELPDESK:account');
     if (account) {
+      const accountStorage = localStorage.getItem('HELPDESK:account');
+      const resultAccount = JSON.parse(accountStorage);
+      setHelpdeskAccount(resultAccount);
       if (!room) {
         let data = {
           name: "Utama",
@@ -65,28 +50,46 @@ const Students = () => {
         }
         setHelpdeskRoom(data);
         localStorage.setItem('HELPDESK:room', JSON.stringify(data));
+        getRooms();
+        getChats(data,roomParams);
         setLogged(true)
       } else {
         const roomStorage = localStorage.getItem('HELPDESK:room');
-        const result = JSON.parse(roomStorage);
+        const resultRoom = JSON.parse(roomStorage);
+        setHelpdeskRoom(resultRoom);
+        setActive(resultRoom);
+        getRooms();
+        getChats(resultRoom,roomParams);
         setLogged(true)
-        setHelpdeskRoom(result);
-        setActive(result);
-      }
-    } else {
-      if (username == 'kanglerian' && password == 'lerian123') {
-        let data = {
-          name: "Lerian Febriana",
-          code: '1921684046',
-          role: 'S'
-        }
-        setHelpdeskAccount(data);
-        localStorage.setItem('HELPDESK:account', JSON.stringify(data));
-        setLogged(true)
-      } else {
-        setLogged(false)
       }
     }
+  }
+
+  const getRooms = async () => {
+    await axios.get('http://localhost:3000/rooms')
+      .then((response) => {
+        setRooms(response.data);
+      })
+      .catch((error) => {
+        console.log(error);
+      })
+  }
+
+  const getChats = async (helpdeskRoom,roomParams) => {
+    await axios.get('http://localhost:3000/chats')
+      .then((response) => {
+        const responseChat = response.data;
+        const resultFilter = responseChat.filter(
+          (chat) =>
+            chat.token == helpdeskRoom.token &&
+            (chat.client == roomParams || chat.role_sender == 'A')
+        );
+        console.log(roomParams);
+        setChats(resultFilter);
+      })
+      .catch((error) => {
+        console.log(error);
+      })
   }
 
   const changeRoom = (name, token, type, secret) => {
@@ -141,11 +144,6 @@ const Students = () => {
     }
   }
 
-  const defaultAnu = () => {
-    const queryParams = searchParams.get("room");
-    setClient(queryParams || 'Anonymous')
-  }
-
   const sendMessage = async (e) => {
     e.preventDefault();
     const accountStringify = localStorage.getItem('HELPDESK:account');
@@ -166,7 +164,7 @@ const Students = () => {
         .then((response) => {
           console.log(response);
           setMessage('');
-          getChats();
+          getChats(roomParse);
         })
         .catch((error) => {
           console.log(error);
@@ -200,9 +198,6 @@ const Students = () => {
 
   useEffect(() => {
     checkActive();
-    getChats();
-    getRooms();
-    defaultAnu();
   }, []);
 
   return (
@@ -275,24 +270,39 @@ const Students = () => {
               )
             }
             <section className={`w-full max-w-lg mx-auto bg-cover bg-slate-300 bg-blend-multiply h-screen overflow-y-auto p-5 shadow-inner`} style={{ backgroundImage: `url(${BackgroundPattern})` }}>
-              <div className='flex flex-col gap-4'>
-                {
-                  chats.length > 0 &&
-                  chats.map((chat) =>
-                    <div key={chat.id} className='w-full flex justify-start'>
-                      <div className='w-5/6 bg-white shadow-sm p-5 rounded-2xl rounded-bl-none'>
-                        <div className='mb-4 space-y-1'>
-                          <h3 className='font-bold text-base text-gray-900'>{chat.client}</h3>
-                          <p className='text-sm text-gray-700'>{chat.message}</p>
+              <div className='flex flex-col gap-3'>
+                {chats.length > 0 && chats.map((chat) => (
+                  <div key={chat.id}>
+                    {chat.client === client ? (
+                      <div className={`w-full flex justify-end`}>
+                        <div className="w-5/6 bg-sky-500 rounded-br-none shadow-sm p-5 rounded-2xl">
+                          <div className="space-y-5">
+                            <p className="text-sm text-white">{chat.message}</p>
+                            <button type="button" className="text-sky-200 hover:text-sky-300 flex items-end gap-1">
+                              <span className="block text-xs"><i className="fi fi-rr-marker"></i></span>
+                              <span className="block text-xs">{chat.date}</span>
+                            </button>
+                          </div>
                         </div>
-                        <button type='button' className='text-gray-500 hover:text-gray-600 flex items-end gap-1'>
-                          <span className='block text-xs'><i className="fi fi-rr-marker"></i></span>
-                          <span className='block text-xs'>Selasa, 24 Maret 2024. 20:22 WIB</span>
-                        </button>
                       </div>
-                    </div>
-                  )
-                }
+                    ) : (
+                      <div className={`w-full flex justify-start`}>
+                        <div className="w-5/6 bg-white rounded-bl-none shadow-sm p-5 rounded-2xl">
+                          <div className="space-y-5">
+                            <div className="space-y-1">
+                              <h3 className="font-bold text-base text-gray-900">{chat.client}</h3>
+                              <p className="text-sm text-gray-700">{chat.message}</p>
+                            </div>
+                            <button type="button" className="text-gray-500 hover:text-gray-600 flex items-end gap-1">
+                              <span className="block text-xs"><i className="fi fi-rr-marker"></i></span>
+                              <span className="block text-xs">{chat.date}</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
                 {/* <div className='w-full flex justify-start'>
                   <div className='w-5/6 bg-white shadow-sm p-5 rounded-2xl rounded-bl-none'>
                     <div className='mb-4 space-y-1'>
@@ -327,8 +337,6 @@ const Students = () => {
                   </button>
                 </form>
                 <div className='text-center space-y-1'>
-                  {helpdeskAccount.name}
-                  {helpdeskRoom.name}
                   <h5 className='font-bold text-xs text-gray-600'>Catatan:</h5>
                   <p className='text-xs text-gray-500 text-center'>Harap berikan deskripsi masalah yang jelas kepada tim ICT kami, sehingga kami dapat memberikan solusi yang tepat.</p>
                 </div>
