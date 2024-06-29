@@ -6,6 +6,7 @@ import BackgroundPattern from '../assets/flatten.png'
 import Man from '../assets/man.png'
 import Custom from '../assets/custom.png'
 import Secret from '../assets/secret.png'
+import BellSound from '../assets/bell.mp3'
 import axios from 'axios';
 import { socket } from '../socket'
 
@@ -15,9 +16,8 @@ const Admin = () => {
   const [rooms, setRooms] = useState([]);
   const [chats, setChats] = useState([]);
   const [connection, setConnection] = useState(false);
-  const [searchParams] = useSearchParams();
 
-  const [client, setClient] = useState('');
+  const client = 'Administrator';
   const [activeRoom, setActiveRoom] = useState({
     name: 'Utama',
     token: 46150,
@@ -29,15 +29,13 @@ const Admin = () => {
   const [logged, setLogged] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [replyMessage, setReplyMessage] = useState('');
   const [message, setMessage] = useState('');
-  const [button, setButton] = useState(true);
+  const [canSendMessage, setCanSendMessage] = useState(true);
 
   const Authentication = () => {
-    const queryParams = searchParams.get("room");
-    const roomQueryParam = queryParams || 'anonymous';
     const room = localStorage.getItem('HELPDESK:room_admin');
     const account = localStorage.getItem('HELPDESK:account_admin');
-    setClient(roomQueryParam)
     if (account) {
       if (!room) {
         let roomActive = {
@@ -48,13 +46,13 @@ const Admin = () => {
         }
         localStorage.setItem('HELPDESK:room_admin', JSON.stringify(roomActive));
         setActiveRoom(roomActive);
-        getChats(roomActive, roomQueryParam);
+        getChats(roomActive);
         getRooms();
         setLogged(true)
       } else {
         const roomStorage = localStorage.getItem('HELPDESK:room_admin');
         const roomActive = JSON.parse(roomStorage);
-        getChats(roomActive, roomQueryParam);
+        getChats(roomActive);
         setActiveRoom(roomActive);
         getRooms();
         setLogged(true)
@@ -72,7 +70,7 @@ const Admin = () => {
       })
   }
 
-  const getChats = async (roomActive, roomQueryParam) => {
+  const getChats = async (roomActive) => {
     await axios.get('http://localhost:3001/chats')
       .then((response) => {
         const responseChat = response.data;
@@ -132,7 +130,7 @@ const Admin = () => {
       localStorage.removeItem('HELPDESK:room_admin');
       localStorage.removeItem('HELPDESK:account_admin');
       setLogged(false);
-      navigate('/')
+      navigate('/admin')
     }
   }
 
@@ -144,27 +142,25 @@ const Admin = () => {
       const accountParse = JSON.parse(accountStringify);
       const roomParse = JSON.parse(roomStringify);
       const dataChat = {
-        client: client,
+        client: 'Administrator',
         name_room: roomParse.name,
         token: roomParse.token,
         uuid_sender: accountParse.uuid,
         name_sender: accountParse.name,
         role_sender: accountParse.role,
         message: message,
-        reply: null,
+        reply: replyMessage,
         date: new Date()
       }
-      setButton(false);
+      setCanSendMessage(false);
       await axios.post('http://localhost:3001/chats', dataChat)
         .then((response) => {
           socket.emit('message', response.data)
+          setReplyMessage('');
           setMessage('');
           setTimeout(() => {
-            scrollToRef();
-          }, 100);
-          setTimeout(() => {
-            setButton(true);
-          }, 3000);
+            setCanSendMessage(true);
+          }, 2000);
         })
         .catch((error) => {
           console.log(error);
@@ -184,10 +180,15 @@ const Admin = () => {
     }
   };
 
+  const bellPlay = () => {
+    let audio = new Audio(BellSound);
+    audio.play();
+  }
+
   const loginFunc = async (e) => {
     e.preventDefault();
     try {
-      const responseUser = await axios.get(`http://localhost:3001/users?username=${username}&password=${password}&role=S`)
+      const responseUser = await axios.get(`http://localhost:3001/users?username=${username}&password=${password}&role=A`)
       const dataUser = responseUser.data;
       if (dataUser.length > 0) {
         let data = {
@@ -210,6 +211,10 @@ const Admin = () => {
   useEffect(() => {
     Authentication();
 
+    setTimeout(() => {
+      scrollToRef();
+    }, 500);
+
     function onConnect() {
       console.log('Connected!');
       setConnection(true);
@@ -220,18 +225,30 @@ const Admin = () => {
       setConnection(false);
     }
 
-    function onHelp(help) {
-      setChats(prevChat => [...prevChat, help]);
+    function onMessage(message) {
+      const roomStringify = localStorage.getItem('HELPDESK:room_admin');
+      if (roomStringify) {
+        const roomParse = JSON.parse(roomStringify);
+        if (message.token == roomParse.token) {
+          setChats(prevChat => [...prevChat, message]);
+          setTimeout(() => {
+            scrollToRef();
+            if (message.role_sender == 'S') {
+              bellPlay();
+            }
+          }, 100);
+        }
+      }
     }
 
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
-    socket.on('help', onHelp);
+    socket.on('message', onMessage);
 
     return () => {
       socket.off('connect', onConnect);
       socket.off('disconnect', onDisconnect);
-      socket.off('help', onHelp);
+      socket.off('message', onMessage);
     };
   }, []);
 
@@ -243,9 +260,12 @@ const Admin = () => {
             <nav className='flex items-center justify-between w-full max-w-lg bg-white mx-auto p-5'>
               <div className='flex items-end gap-2'>
                 <i className="fi fi-rr-user-headset text-xl"></i>
-                <h1 className='font-bold text-xl'>Chat {activeRoom.name}: {client}</h1>
+                <h1 className='font-bold text-xl'>Admin Chat {activeRoom.name}</h1>
               </div>
               <div className='flex items-center gap-5'>
+                <button onClick={bellPlay} type='button' className='text-sky-700 hover:text-sky-800'>
+                  <i className="fi fi-rr-bell-ring"></i>
+                </button>
                 <button onClick={removeToken} type='button' className='text-sky-700 hover:text-sky-800'>
                   <i className="fi fi-rr-key"></i>
                 </button>
@@ -306,8 +326,8 @@ const Admin = () => {
             }
             <section ref={chatContainerRef} className={`w-full max-w-lg mx-auto bg-cover bg-slate-300 bg-blend-multiply h-screen overflow-y-auto p-5 shadow-inner`} style={{ backgroundImage: `url(${BackgroundPattern})` }}>
               <div className='flex flex-col gap-3'>
-                {chats.length > 0 && chats.map((chat) => (
-                  <div key={chat.id}>
+                {chats.length > 0 && chats.map((chat, index) => (
+                  <div key={index}>
                     {chat.client === client ? (
                       <div className="w-full flex justify-end">
                         <div className="w-5/6 bg-sky-500 rounded-br-none shadow-sm p-5 rounded-2xl">
@@ -342,21 +362,27 @@ const Admin = () => {
             </section>
             <div className='w-full max-w-lg bg-white mx-auto px-8 pt-8 pb-5'>
               <div className='space-y-3'>
-                {
-                  button &&
-                  <form onSubmit={sendMessage} className="flex items-center gap-2 max-w-lg mx-auto">
-                    <div className="relative w-full">
-                      <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-                        <i className="fi fi-rr-comment text-gray-500"></i>
-                      </div>
-                      <input type="text" value={message} onChange={(e) => setMessage(e.target.value)} className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5" placeholder="Tulis pesan disini..." required />
+                <form onSubmit={sendMessage} className="flex items-center gap-2 max-w-lg mx-auto">
+                  <div className="relative w-1/3">
+                    <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
+                      <i className={`fi fi-rr-${canSendMessage ? 'smart-home' : 'stopwatch'} text-gray-500`}></i>
                     </div>
+                    <input type="text" value={replyMessage} onChange={(e) => setReplyMessage(e.target.value)} className={`${canSendMessage ? 'bg-gray-50' : 'bg-gray-200'} border border-gray-300 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5`} placeholder='Ruangan' required disabled={!canSendMessage} autoFocus={true} />
+                  </div>
+                  <div className="relative w-2/3">
+                    <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
+                      <i className={`fi fi-rr-${canSendMessage ? 'comment' : 'stopwatch'} text-gray-500`}></i>
+                    </div>
+                    <input type="text" value={message} onChange={(e) => setMessage(e.target.value)} className={`${canSendMessage ? 'bg-gray-50' : 'bg-gray-200'} border border-gray-300 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5`} placeholder={`${canSendMessage ? 'Tulis pesan disini...' : 'Tolong ditunggu selama 2 detik!'}`} required disabled={!canSendMessage} autoFocus={true} />
+                  </div>
+                  {
+                    canSendMessage &&
                     <button type="submit" className="flex gap-2 items-center justify-center py-2.5 px-3 text-sm font-medium text-white bg-sky-600 rounded-xl hover:bg-sky-700 focus:ring-4 focus:outline-none focus:ring-blue-300">
                       <i className="flex fi fi-rr-paper-plane"></i>
                       <span>Kirim</span>
                     </button>
-                  </form>
-                }
+                  }
+                </form>
                 <div className='text-center space-y-1'>
                   <h5 className='font-bold text-xs text-gray-600'>Catatan:</h5>
                   <p className='text-xs text-gray-500 text-center'>Harap berikan deskripsi masalah yang jelas kepada tim ICT kami, sehingga kami dapat memberikan solusi yang tepat.</p>
@@ -372,7 +398,7 @@ const Admin = () => {
             <Lottie animationData={chatAnimation} loop={true} className='w-1/3 md:w-1/6' />
             <div className='text-center space-y-5'>
               <div className='space-y-1'>
-                <h2 className='font-bold text-2xl text-white'>Helpdesk Chat</h2>
+                <h2 className='font-bold text-2xl text-white'>Admin Helpdesk Chat</h2>
                 <p className='text-sm text-sky-200'>Make simple chat for quick problem solving.</p>
               </div>
               <form onSubmit={loginFunc} className='flex flex-col items-center gap-2'>

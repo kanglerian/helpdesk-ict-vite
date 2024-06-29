@@ -6,6 +6,7 @@ import BackgroundPattern from '../assets/flatten.png'
 import Man from '../assets/man.png'
 import Custom from '../assets/custom.png'
 import Secret from '../assets/secret.png'
+import BellSound from '../assets/bell.mp3'
 import axios from 'axios';
 import { socket } from '../socket'
 
@@ -30,7 +31,7 @@ const Students = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
-  const [button, setButton] = useState(true);
+  const [canSendMessage, setCanSendMessage] = useState(true);
 
   const Authentication = () => {
     const queryParams = searchParams.get("room");
@@ -155,17 +156,14 @@ const Students = () => {
         reply: null,
         date: new Date()
       }
-      setButton(false);
+      setCanSendMessage(false);
       await axios.post('http://localhost:3001/chats', dataChat)
         .then((response) => {
           socket.emit('message', response.data)
           setMessage('');
           setTimeout(() => {
-            scrollToRef();
-          }, 100);
-          setTimeout(() => {
-            setButton(true);
-          }, 3000);
+            setCanSendMessage(true);
+          }, 7000);
         })
         .catch((error) => {
           console.log(error);
@@ -184,6 +182,11 @@ const Students = () => {
       }
     }
   };
+
+  const bellPlay = () => {
+    let audio = new Audio(BellSound);
+    audio.play();
+  }
 
   const loginFunc = async (e) => {
     e.preventDefault();
@@ -211,6 +214,10 @@ const Students = () => {
   useEffect(() => {
     Authentication();
 
+    setTimeout(() => {
+      scrollToRef();
+    }, 500);
+
     function onConnect() {
       console.log('Connected!');
       setConnection(true);
@@ -225,10 +232,36 @@ const Students = () => {
       const queryParams = searchParams.get("room");
       const roomQueryParam = queryParams || 'anonymous';
       const roomStringify = localStorage.getItem('HELPDESK:room');
-      if(roomStringify){
+      if (roomStringify) {
         const roomParse = JSON.parse(roomStringify);
-        if(message.token == roomParse.token && (message.reply == roomQueryParam || message.client == roomQueryParam)){
+        if (message.token == roomParse.token && (message.reply == roomQueryParam || message.client == roomQueryParam)) {
           setChats(prevChat => [...prevChat, message]);
+          setTimeout(() => {
+            scrollToRef();
+            if (message.role_sender == 'A') {
+              bellPlay();
+            } else {
+              setTimeout(() => {
+                let autoreply = {
+                  client: 'Help BOT',
+                  date: message.date,
+                  id: 0,
+                  message: "Informasi sudah diterima, mohon ditunggu ya!",
+                  name_room: message.name_room,
+                  name_sender: 'Help BOT',
+                  reply: roomQueryParam,
+                  role_sender: 'A',
+                  token: message.token,
+                  uuid_sender: '0019238908'
+                }
+                setChats(prevChat => [...prevChat, autoreply]);
+                setTimeout(() => {
+                  scrollToRef();
+                  bellPlay();
+                }, 100);
+              }, 3000);
+            }
+          }, 100);
         }
       }
     }
@@ -315,8 +348,8 @@ const Students = () => {
             }
             <section ref={chatContainerRef} className={`w-full max-w-lg mx-auto bg-cover bg-slate-300 bg-blend-multiply h-screen overflow-y-auto p-5 shadow-inner`} style={{ backgroundImage: `url(${BackgroundPattern})` }}>
               <div className='flex flex-col gap-3'>
-                {chats.length > 0 && chats.map((chat) => (
-                  <div key={chat.id}>
+                {chats.length > 0 && chats.map((chat, index) => (
+                  <div key={index}>
                     {chat.client === client ? (
                       <div className="w-full flex justify-end">
                         <div className="w-5/6 bg-sky-500 rounded-br-none shadow-sm p-5 rounded-2xl">
@@ -351,21 +384,21 @@ const Students = () => {
             </section>
             <div className='w-full max-w-lg bg-white mx-auto px-8 pt-8 pb-5'>
               <div className='space-y-3'>
-                {
-                  button &&
-                  <form onSubmit={sendMessage} className="flex items-center gap-2 max-w-lg mx-auto">
-                    <div className="relative w-full">
-                      <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-                        <i className="fi fi-rr-comment text-gray-500"></i>
-                      </div>
-                      <input type="text" value={message} onChange={(e) => setMessage(e.target.value)} className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5" placeholder="Tulis pesan disini..." required />
+                <form onSubmit={sendMessage} className="flex items-center gap-2 max-w-lg mx-auto">
+                  <div className="relative w-full">
+                    <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
+                      <i className={`fi fi-rr-${canSendMessage ? 'comment' : 'stopwatch'} text-gray-500`}></i>
                     </div>
+                    <input type="text" value={message} onChange={(e) => setMessage(e.target.value)} className={`${canSendMessage ? 'bg-gray-50' : 'bg-gray-200'} border border-gray-300 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5`} placeholder={`${canSendMessage ? 'Tulis pesan disini...' : 'Tolong ditunggu selama 7 detik...'}`} required disabled={!canSendMessage} autoFocus={true} />
+                  </div>
+                  {
+                    canSendMessage &&
                     <button type="submit" className="flex gap-2 items-center justify-center py-2.5 px-3 text-sm font-medium text-white bg-sky-600 rounded-xl hover:bg-sky-700 focus:ring-4 focus:outline-none focus:ring-blue-300">
                       <i className="flex fi fi-rr-paper-plane"></i>
                       <span>Kirim</span>
                     </button>
-                  </form>
-                }
+                  }
+                </form>
                 <div className='text-center space-y-1'>
                   <h5 className='font-bold text-xs text-gray-600'>Catatan:</h5>
                   <p className='text-xs text-gray-500 text-center'>Harap berikan deskripsi masalah yang jelas kepada tim ICT kami, sehingga kami dapat memberikan solusi yang tepat.</p>
