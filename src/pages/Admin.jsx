@@ -8,10 +8,15 @@ import Man from '../assets/man.png'
 import Default from '../assets/default.png'
 import Custom from '../assets/custom.png'
 import Secret from '../assets/secret.png'
+import axios from 'axios';
 
 const Admin = () => {
   const navigate = useNavigate();
+  const [rooms, setRooms] = useState([]);
+  const [chats, setChats] = useState([]);
+  const [searchParams] = useSearchParams();
   const [enableRoom, setEnableRoom] = useState(false);
+  const [client, setClient] = useState('Anonymousee');
   const [active, setActive] = useState({
     name: 'Utama',
     token: 46150,
@@ -21,11 +26,21 @@ const Admin = () => {
   const [logged, setLogged] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [message, setMessage] = useState('');
+  const [helpdeskRoom, setHelpdeskRoom] = useState({});
+  const [helpdeskAccount, setHelpdeskAccount] = useState({});
+
 
   const checkActive = () => {
+    const queryParams = searchParams.get("room");
+    const roomParams = queryParams;
+    setClient(roomParams)
     const room = localStorage.getItem('HELPDESK:room_admin');
     const account = localStorage.getItem('HELPDESK:account_admin');
     if (account) {
+      const accountStorage = localStorage.getItem('HELPDESK:account_admin');
+      const resultAccount = JSON.parse(accountStorage);
+      setHelpdeskAccount(resultAccount);
       if (!room) {
         let data = {
           name: "Utama",
@@ -33,33 +48,58 @@ const Admin = () => {
           type: 0,
           secret: 0,
         }
+        setHelpdeskRoom(data);
         localStorage.setItem('HELPDESK:room_admin', JSON.stringify(data));
+        getRooms();
+        getChats(data,roomParams);
         setLogged(true)
       } else {
         const roomStorage = localStorage.getItem('HELPDESK:room_admin');
-        const result = JSON.parse(roomStorage);
+        const resultRoom = JSON.parse(roomStorage);
+        setHelpdeskRoom(resultRoom);
+        setActive(resultRoom);
+        getRooms();
+        getChats(resultRoom,roomParams);
         setLogged(true)
-        setActive(result);
-      }
-    } else {
-      if (username == 'lp3itasik' && password == 'mimin311') {
-        let data = {
-          name: "Administrator",
-        }
-        localStorage.setItem('HELPDESK:account_admin', JSON.stringify(data));
-        setLogged(true)
-      } else {
-        setLogged(false)
       }
     }
   }
 
-  const changeRoom = (name, token, type) => {
+  const getRooms = async () => {
+    await axios.get('http://localhost:3001/rooms')
+      .then((response) => {
+        setRooms(response.data);
+      })
+      .catch((error) => {
+        console.log(error);
+      })
+  }
+
+  const getChats = async (helpdeskRoom,roomParams) => {
+    await axios.get('http://localhost:3001/chats')
+      .then((response) => {
+        const responseChat = response.data;
+        const resultFilter = responseChat.filter(
+          (chat) =>
+            chat.token == helpdeskRoom.token &&
+            (chat.client == roomParams || chat.role_sender == 'A')
+        );
+        console.log(roomParams);
+        setChats(resultFilter);
+      })
+      .catch((error) => {
+        console.log(error);
+      })
+  }
+
+  const changeRoom = (name, token, type, secret) => {
     let data = {
       name: name,
       token: token,
-      type: type
+      type: type,
+      secret: secret,
     }
+    setHelpdeskRoom(data);
     localStorage.setItem('HELPDESK:room_admin', JSON.stringify(data));
     checkActive();
   }
@@ -73,6 +113,7 @@ const Admin = () => {
         type: 1,
         secret: 0,
       }
+      setHelpdeskRoom(data);
       localStorage.setItem('HELPDESK:room_admin', JSON.stringify(data));
       checkActive();
     }
@@ -87,6 +128,7 @@ const Admin = () => {
         type: 1,
         secret: 1,
       }
+      setHelpdeskRoom(data);
       localStorage.setItem('HELPDESK:room_admin', JSON.stringify(data));
       checkActive();
     }
@@ -94,7 +136,7 @@ const Admin = () => {
 
   const removeToken = () => {
     const logoutPrompt = confirm('Apakah anda yakin akan keluar?');
-    if(logoutPrompt){
+    if (logoutPrompt) {
       localStorage.removeItem('HELPDESK:room_admin');
       localStorage.removeItem('HELPDESK:account_admin');
       setLogged(false);
@@ -102,19 +144,55 @@ const Admin = () => {
     }
   }
 
-  const loginFunc = (e) => {
+  const sendMessage = async (e) => {
     e.preventDefault();
-    if (username == 'lp3itasik' && password == 'mimin311') {
-      let data = {
-        name: "Administrator",
-        code: '1921684041'
+    const accountStringify = localStorage.getItem('HELPDESK:account_admin');
+    const roomStringify = localStorage.getItem('HELPDESK:room_admin');
+    if (accountStringify && roomStringify) {
+      const accountParse = JSON.parse(accountStringify);
+      const roomParse = JSON.parse(roomStringify);
+      await axios.post('http://localhost:3001/chats', {
+        client: client,
+        name_room: roomParse.name,
+        token: roomParse.token,
+        uuid_sender: accountParse.uuid,
+        name_sender: accountParse.name,
+        role_sender: accountParse.role,
+        message: message,
+        date: new Date()
+      })
+        .then((response) => {
+          console.log(response);
+          setMessage('');
+          getChats(roomParse);
+        })
+        .catch((error) => {
+          console.log(error);
+        })
+    }
+  }
+
+  const loginFunc = async (e) => {
+    e.preventDefault();
+    try {
+      const responseUser = await axios.get(`http://localhost:3001/users?username=${username}&password=${password}&role=A`)
+      const dataUser = responseUser.data;
+      if (dataUser.length > 0) {
+        let data = {
+          name: dataUser[0].name,
+          uuid: dataUser[0].uuid,
+          role: dataUser[0].role
+        }
+        setHelpdeskAccount(data);
+        localStorage.setItem('HELPDESK:account_admin', JSON.stringify(data));
+        setLogged(true)
+        checkActive()
+      } else {
+        alert('Username atau Password salah!')
+        setLogged(false)
       }
-      localStorage.setItem('HELPDESK:account_admin', JSON.stringify(data));
-      setLogged(true)
-      checkActive()
-    } else {
-      alert('Username atau Password salah!')
-      setLogged(false)
+    } catch (err) {
+      console.log(err);
     }
   }
 
@@ -130,7 +208,7 @@ const Admin = () => {
             <nav className='flex items-center justify-between w-full max-w-lg bg-white mx-auto p-5'>
               <div className='flex items-end gap-2'>
                 <i className="fi fi-rr-user-headset text-xl"></i>
-                <h1 className='font-bold text-xl'>Chat {active.name}</h1>
+                <h1 className='font-bold text-xl'>Chat {active.name}: {client}</h1>
               </div>
               <div className='flex items-center gap-5'>
                 <button onClick={removeToken} type='button' className='text-sky-700 hover:text-sky-800'>
@@ -139,49 +217,93 @@ const Admin = () => {
                 <button type='button' className='text-emerald-500 hover:text-emerald-600'>
                   <i className="fi fi-rr-wifi"></i>
                 </button>
-                <button onClick={() => setEnableRoom(!enableRoom)} type='button' className='text-sky-700 hover:text-sky-800'>
-                  <i className="fi fi-rr-dropdown-select"></i>
-                </button>
+                {
+                  rooms.length > 0 &&
+                  <button onClick={() => setEnableRoom(!enableRoom)} type='button' className='text-sky-700 hover:text-sky-800'>
+                    <i className="fi fi-rr-dropdown-select"></i>
+                  </button>
+                }
               </div>
             </nav>
             {
-              enableRoom &&
-              <section className="w-full h-1/5 max-w-lg mx-auto bg-white flex flex-nowrap overflow-x-auto border-gray-200 text-gray-500 px-5 gap-5">
-                <button type='button' onClick={() => changeRoom('Utama', '46150', '0')} className="w-auto flex flex-col items-center space-y-1 p-1 md:p-0">
-                  <div className='w-full flex flex-col items-center justify-center gap-1'>
-                    <div className='w-10 h-10 bg-cover bg-center' style={{ backgroundImage: `url(${Default})` }}></div>
-                    <h4 className='text-xs text-gray-800 font-medium'>Utama</h4>
-                  </div>
-                </button>
-                <button type='button' onClick={() => changeRoom('ICT', '46151', '0')} className="w-auto flex flex-col items-center space-y-1 p-1 md:p-0">
-                  <div className='w-full flex flex-col items-center justify-center gap-1'>
-                    <div className='w-10 h-10 bg-cover bg-center' style={{ backgroundImage: `url(${Man})` }}></div>
-                    <h4 className='text-xs text-gray-800 font-medium'>ICT</h4>
-                  </div>
-                </button>
-                <button type='button' onClick={() => changeRoom('Pendidikan', '46152', '0')} className="w-auto flex flex-col items-center space-y-1 p-1 md:p-0">
-                  <div className='w-full flex flex-col items-center justify-center gap-1'>
-                    <div className='w-10 h-10 bg-cover bg-center' style={{ backgroundImage: `url(${Woman})` }}></div>
-                    <h4 className='text-xs text-gray-800 font-medium'>Pendidikan</h4>
-                  </div>
-                </button>
-                <button type='button' onClick={manualRoom} className="w-auto flex flex-col items-center space-y-1 p-1 md:p-0">
-                  <div className='w-full flex flex-col items-center justify-center gap-1'>
-                    <div className='w-10 h-10 bg-cover bg-center' style={{ backgroundImage: `url(${Custom})` }}></div>
-                    <h4 className='text-xs text-gray-800 font-medium'>Manual</h4>
-                  </div>
-                </button>
-                <button type='button' onClick={secretRoom} className="w-auto flex flex-col items-center space-y-1 p-1 md:p-0">
-                  <div className='w-full flex flex-col items-center justify-center gap-1'>
-                    <div className='w-10 h-10 bg-cover bg-center' style={{ backgroundImage: `url(${Secret})` }}></div>
-                    <h4 className='text-xs text-gray-800 font-medium'>Secret</h4>
-                  </div>
-                </button>
-              </section>
+              rooms.length > 0 && enableRoom && (
+                <section className="w-full h-1/5 max-w-lg mx-auto bg-white flex flex-nowrap overflow-x-auto border-gray-200 text-gray-500 px-5 gap-5">
+                  {rooms.map((roomItem) => (
+                    <button
+                      key={roomItem.id}
+                      type="button"
+                      onClick={() => changeRoom(roomItem.name, roomItem.token, roomItem.type, roomItem.secret)}
+                      className="w-auto flex flex-col items-center space-y-1 p-1 md:p-0"
+                    >
+                      <div className="w-full flex flex-col items-center justify-center gap-1">
+                        <div
+                          className="w-10 h-10 bg-cover bg-center"
+                          style={{ backgroundImage: `url(${Man})` }}
+                        ></div>
+                        <h4 className="text-xs text-gray-800 font-medium">{roomItem.name}</h4>
+                      </div>
+                    </button>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={manualRoom}
+                    className="w-auto flex flex-col items-center space-y-1 p-1 md:p-0"
+                  >
+                    <div className="w-full flex flex-col items-center justify-center gap-1">
+                      <div className="w-10 h-10 bg-cover bg-center" style={{ backgroundImage: `url(${Custom})` }}></div>
+                      <h4 className="text-xs text-gray-800 font-medium">Manual</h4>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={secretRoom}
+                    className="w-auto flex flex-col items-center space-y-1 p-1 md:p-0"
+                  >
+                    <div className="w-full flex flex-col items-center justify-center gap-1">
+                      <div className="w-10 h-10 bg-cover bg-center" style={{ backgroundImage: `url(${Secret})` }}></div>
+                      <h4 className="text-xs text-gray-800 font-medium">Secret</h4>
+                    </div>
+                  </button>
+                </section>
+              )
             }
             <section className={`w-full max-w-lg mx-auto bg-cover bg-slate-300 bg-blend-multiply h-screen overflow-y-auto p-5 shadow-inner`} style={{ backgroundImage: `url(${BackgroundPattern})` }}>
-              <div className='flex flex-col gap-4'>
-                <div className='w-full flex justify-start items-center gap-3'>
+              <div className='flex flex-col gap-3'>
+                {chats.length > 0 && chats.map((chat) => (
+                  <div key={chat.id}>
+                    {chat.client === client ? (
+                      <div className={`w-full flex justify-end`}>
+                        <div className="w-5/6 bg-sky-500 rounded-br-none shadow-sm p-5 rounded-2xl">
+                          <div className="space-y-5">
+                            <p className="text-sm text-white">{chat.message}</p>
+                            <button type="button" className="text-sky-200 hover:text-sky-300 flex items-end gap-1">
+                              <span className="block text-xs"><i className="fi fi-rr-marker"></i></span>
+                              <span className="block text-xs">{chat.date}</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className={`w-full flex justify-start`}>
+                        <div className="w-5/6 bg-white rounded-bl-none shadow-sm p-5 rounded-2xl">
+                          <div className="space-y-5">
+                            <div className="space-y-1">
+                              <h3 className="font-bold text-base text-gray-900">{chat.client}</h3>
+                              <p className="text-sm text-gray-700">{chat.message}</p>
+                            </div>
+                            <button type="button" className="text-gray-500 hover:text-gray-600 flex items-end gap-1">
+                              <span className="block text-xs"><i className="fi fi-rr-marker"></i></span>
+                              <span className="block text-xs">{chat.date}</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {/* <div className='w-full flex justify-start'>
                   <div className='w-5/6 bg-white shadow-sm p-5 rounded-2xl rounded-bl-none'>
                     <div className='mb-4 space-y-1'>
                       <h3 className='font-bold text-base text-gray-900'>Career Center</h3>
@@ -190,66 +312,6 @@ const Admin = () => {
                     <button type='button' className='text-gray-500 hover:text-gray-600 flex items-end gap-1'>
                       <span className='block text-xs'><i className="fi fi-rr-marker"></i></span>
                       <span className='block text-xs'>Selasa, 24 Maret 2024. 20:22 WIB</span>
-                    </button>
-                  </div>
-                  <div className="w-1/6">
-                    <button type="submit" className="flex gap-2 items-center justify-center py-2.5 px-3 text-sm font-medium text-white bg-sky-600 rounded-xl hover:bg-sky-700 focus:ring-4 focus:outline-none focus:ring-blue-300">
-                      <i className="fi fi-rr-comment"></i>
-                      <span>Balas</span>
-                    </button>
-                  </div>
-                </div>
-                <div className='w-full flex justify-start items-center gap-3'>
-                  <div className='w-5/6 bg-white shadow-sm p-5 rounded-2xl rounded-bl-none'>
-                    <div className='mb-4 space-y-1'>
-                      <h3 className='font-bold text-base text-gray-900'>Career Center</h3>
-                      <p className='text-sm text-gray-700'>Lorem ipsum dolor sit amet consectetur adipisicing elit. Nemo, cupiditate.</p>
-                    </div>
-                    <button type='button' className='text-gray-500 hover:text-gray-600 flex items-end gap-1'>
-                      <span className='block text-xs'><i className="fi fi-rr-marker"></i></span>
-                      <span className='block text-xs'>Selasa, 24 Maret 2024. 20:22 WIB</span>
-                    </button>
-                  </div>
-                  <div className="w-1/6">
-                    <button type="submit" className="flex gap-2 items-center justify-center py-2.5 px-3 text-sm font-medium text-white bg-sky-600 rounded-xl hover:bg-sky-700 focus:ring-4 focus:outline-none focus:ring-blue-300">
-                      <i className="fi fi-rr-comment"></i>
-                      <span>Balas</span>
-                    </button>
-                  </div>
-                </div>
-                <div className='w-full flex justify-start items-center gap-3'>
-                  <div className='w-5/6 bg-white shadow-sm p-5 rounded-2xl rounded-bl-none'>
-                    <div className='mb-4 space-y-1'>
-                      <h3 className='font-bold text-base text-gray-900'>Career Center</h3>
-                      <p className='text-sm text-gray-700'>Lorem ipsum dolor sit amet consectetur adipisicing elit. Nemo, cupiditate.</p>
-                    </div>
-                    <button type='button' className='text-gray-500 hover:text-gray-600 flex items-end gap-1'>
-                      <span className='block text-xs'><i className="fi fi-rr-marker"></i></span>
-                      <span className='block text-xs'>Selasa, 24 Maret 2024. 20:22 WIB</span>
-                    </button>
-                  </div>
-                  <div className="w-1/6">
-                    <button type="submit" className="flex gap-2 items-center justify-center py-2.5 px-3 text-sm font-medium text-white bg-sky-600 rounded-xl hover:bg-sky-700 focus:ring-4 focus:outline-none focus:ring-blue-300">
-                      <i className="fi fi-rr-comment"></i>
-                      <span>Balas</span>
-                    </button>
-                  </div>
-                </div>
-                <div className='w-full flex justify-start items-center gap-3'>
-                  <div className='w-5/6 bg-white shadow-sm p-5 rounded-2xl rounded-bl-none'>
-                    <div className='mb-4 space-y-1'>
-                      <h3 className='font-bold text-base text-gray-900'>Career Center</h3>
-                      <p className='text-sm text-gray-700'>Lorem ipsum dolor sit amet consectetur adipisicing elit. Nemo, cupiditate.</p>
-                    </div>
-                    <button type='button' className='text-gray-500 hover:text-gray-600 flex items-end gap-1'>
-                      <span className='block text-xs'><i className="fi fi-rr-marker"></i></span>
-                      <span className='block text-xs'>Selasa, 24 Maret 2024. 20:22 WIB</span>
-                    </button>
-                  </div>
-                  <div className="w-1/6">
-                    <button type="submit" className="flex gap-2 items-center justify-center py-2.5 px-3 text-sm font-medium text-white bg-sky-600 rounded-xl hover:bg-sky-700 focus:ring-4 focus:outline-none focus:ring-blue-300">
-                      <i className="fi fi-rr-comment"></i>
-                      <span>Balas</span>
                     </button>
                   </div>
                 </div>
@@ -257,23 +319,17 @@ const Admin = () => {
                   <div className='w-5/6 bg-sky-500 shadow-sm p-5 rounded-2xl rounded-br-none'>
                     <p className='text-sm text-white'>Lorem ipsum dolor sit amet consectetur adipisicing elit. Nemo, cupiditate.</p>
                   </div>
-                </div>
+                </div> */}
               </div>
             </section>
             <div className='w-full max-w-lg bg-white mx-auto px-8 pt-8 pb-5'>
               <div className='space-y-3'>
-                <form className="flex items-center gap-2 max-w-lg mx-auto">
-                  <div className="relative w-1/3">
-                    <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-                      <i className="fi fi-rr-user text-gray-500"></i>
-                    </div>
-                    <input type="text" id="voice-search" className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5" placeholder="Room" required />
-                  </div>
-                  <div className="relative w-2/3">
+                <form onSubmit={sendMessage} className="flex items-center gap-2 max-w-lg mx-auto">
+                  <div className="relative w-full">
                     <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
                       <i className="fi fi-rr-comment text-gray-500"></i>
                     </div>
-                    <input type="text" id="voice-search" className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5" placeholder="Tulis pesan disini..." required />
+                    <input type="text" value={message} onChange={(e) => setMessage(e.target.value)} className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5" placeholder="Tulis pesan disini..." required />
                   </div>
                   <button type="submit" className="flex gap-2 items-center justify-center py-2.5 px-3 text-sm font-medium text-white bg-sky-600 rounded-xl hover:bg-sky-700 focus:ring-4 focus:outline-none focus:ring-blue-300">
                     <i className="flex fi fi-rr-paper-plane"></i>

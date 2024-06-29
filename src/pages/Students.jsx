@@ -1,72 +1,68 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import Lottie from "lottie-react";
 import chatAnimation from "../assets/chat-animation.json";
 import BackgroundPattern from '../assets/flatten.png'
-import Woman from '../assets/woman.png'
 import Man from '../assets/man.png'
-import Default from '../assets/default.png'
 import Custom from '../assets/custom.png'
 import Secret from '../assets/secret.png'
 import axios from 'axios';
+import { socket } from '../socket'
 
 const Students = () => {
   const navigate = useNavigate();
+  const chatContainerRef = useRef(null);
   const [rooms, setRooms] = useState([]);
   const [chats, setChats] = useState([]);
+  const [connection, setConnection] = useState(false);
   const [searchParams] = useSearchParams();
-  const [enableRoom, setEnableRoom] = useState(false);
-  const [client, setClient] = useState('Anonymousee');
-  const [active, setActive] = useState({
+
+  const [client, setClient] = useState('');
+  const [activeRoom, setActiveRoom] = useState({
     name: 'Utama',
     token: 46150,
     type: 0,
     secret: 0,
   });
+
+  const [enableRoom, setEnableRoom] = useState(false);
   const [logged, setLogged] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
-  const [helpdeskRoom, setHelpdeskRoom] = useState({});
-  const [helpdeskAccount, setHelpdeskAccount] = useState({});
 
-
-  const checkActive = () => {
+  const Authentication = () => {
     const queryParams = searchParams.get("room");
-    const roomParams = queryParams;
-    setClient(roomParams)
+    const roomQueryParam = queryParams || 'anonymous';
     const room = localStorage.getItem('HELPDESK:room');
     const account = localStorage.getItem('HELPDESK:account');
+    setClient(roomQueryParam)
     if (account) {
-      const accountStorage = localStorage.getItem('HELPDESK:account');
-      const resultAccount = JSON.parse(accountStorage);
-      setHelpdeskAccount(resultAccount);
       if (!room) {
-        let data = {
+        let roomActive = {
           name: "Utama",
           token: 46150,
           type: 0,
           secret: 0,
         }
-        setHelpdeskRoom(data);
-        localStorage.setItem('HELPDESK:room', JSON.stringify(data));
+        localStorage.setItem('HELPDESK:room', JSON.stringify(roomActive));
+        setActiveRoom(roomActive);
+        getChats(roomActive, roomQueryParam);
         getRooms();
-        getChats(data,roomParams);
         setLogged(true)
       } else {
         const roomStorage = localStorage.getItem('HELPDESK:room');
-        const resultRoom = JSON.parse(roomStorage);
-        setHelpdeskRoom(resultRoom);
-        setActive(resultRoom);
+        const roomActive = JSON.parse(roomStorage);
+        getChats(roomActive, roomQueryParam);
+        setActiveRoom(roomActive);
         getRooms();
-        getChats(resultRoom,roomParams);
         setLogged(true)
       }
     }
   }
 
   const getRooms = async () => {
-    await axios.get('http://localhost:3000/rooms')
+    await axios.get('http://localhost:3001/rooms')
       .then((response) => {
         setRooms(response.data);
       })
@@ -75,16 +71,15 @@ const Students = () => {
       })
   }
 
-  const getChats = async (helpdeskRoom,roomParams) => {
-    await axios.get('http://localhost:3000/chats')
+  const getChats = async (roomActive, roomQueryParam) => {
+    await axios.get('http://localhost:3001/chats')
       .then((response) => {
         const responseChat = response.data;
         const resultFilter = responseChat.filter(
           (chat) =>
-            chat.token == helpdeskRoom.token &&
-            (chat.client == roomParams || chat.role_sender == 'A')
+            chat.token == roomActive.token &&
+            (chat.reply == roomQueryParam || chat.client == roomQueryParam)
         );
-        console.log(roomParams);
         setChats(resultFilter);
       })
       .catch((error) => {
@@ -99,9 +94,8 @@ const Students = () => {
       type: type,
       secret: secret,
     }
-    setHelpdeskRoom(data);
     localStorage.setItem('HELPDESK:room', JSON.stringify(data));
-    checkActive();
+    Authentication();
   }
 
   const manualRoom = () => {
@@ -113,9 +107,8 @@ const Students = () => {
         type: 1,
         secret: 0,
       }
-      setHelpdeskRoom(data);
       localStorage.setItem('HELPDESK:room', JSON.stringify(data));
-      checkActive();
+      Authentication();
     }
   }
 
@@ -128,9 +121,8 @@ const Students = () => {
         type: 1,
         secret: 1,
       }
-      setHelpdeskRoom(data);
       localStorage.setItem('HELPDESK:room', JSON.stringify(data));
-      checkActive();
+      Authentication();
     }
   }
 
@@ -151,7 +143,7 @@ const Students = () => {
     if (accountStringify && roomStringify) {
       const accountParse = JSON.parse(accountStringify);
       const roomParse = JSON.parse(roomStringify);
-      await axios.post('http://localhost:3000/chats', {
+      const dataChat = {
         client: client,
         name_room: roomParse.name,
         token: roomParse.token,
@@ -159,12 +151,16 @@ const Students = () => {
         name_sender: accountParse.name,
         role_sender: accountParse.role,
         message: message,
+        reply: null,
         date: new Date()
-      })
+      }
+      await axios.post('http://localhost:3001/chats', dataChat)
         .then((response) => {
-          console.log(response);
+          socket.emit('message', response.data)
           setMessage('');
-          getChats(roomParse);
+          setTimeout(() => {
+            scrollToRef();
+          }, 100);
         })
         .catch((error) => {
           console.log(error);
@@ -172,10 +168,22 @@ const Students = () => {
     }
   }
 
+  const scrollToRef = () => {
+    if (chatContainerRef.current) {
+      if (chatContainerRef.current) {
+        const currentScroll = chatContainerRef.current.scrollHeight;
+        chatContainerRef.current.scrollTo({
+          top: currentScroll,
+          behavior: 'smooth'
+        });
+      }
+    }
+  };
+
   const loginFunc = async (e) => {
     e.preventDefault();
     try {
-      const responseUser = await axios.get(`http://localhost:3000/users?username=${username}&password=${password}`)
+      const responseUser = await axios.get(`http://localhost:3001/users?username=${username}&password=${password}&role=S`)
       const dataUser = responseUser.data;
       if (dataUser.length > 0) {
         let data = {
@@ -183,10 +191,9 @@ const Students = () => {
           uuid: dataUser[0].uuid,
           role: dataUser[0].role
         }
-        setHelpdeskAccount(data);
         localStorage.setItem('HELPDESK:account', JSON.stringify(data));
         setLogged(true)
-        checkActive()
+        Authentication()
       } else {
         alert('Username atau Password salah!')
         setLogged(false)
@@ -197,7 +204,31 @@ const Students = () => {
   }
 
   useEffect(() => {
-    checkActive();
+    Authentication();
+
+    function onConnect() {
+      console.log('Connected!');
+      setConnection(true);
+    }
+
+    function onDisconnect() {
+      console.log('Disconnected!');
+      setConnection(false);
+    }
+
+    function onHelp(help) {
+      setChats(prevChat => [...prevChat, help]);
+    }
+
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
+    socket.on('help', onHelp);
+
+    return () => {
+      socket.off('connect', onConnect);
+      socket.off('disconnect', onDisconnect);
+      socket.off('help', onHelp);
+    };
   }, []);
 
   return (
@@ -208,13 +239,13 @@ const Students = () => {
             <nav className='flex items-center justify-between w-full max-w-lg bg-white mx-auto p-5'>
               <div className='flex items-end gap-2'>
                 <i className="fi fi-rr-user-headset text-xl"></i>
-                <h1 className='font-bold text-xl'>Chat {active.name}: {client}</h1>
+                <h1 className='font-bold text-xl'>Chat {activeRoom.name}: {client}</h1>
               </div>
               <div className='flex items-center gap-5'>
                 <button onClick={removeToken} type='button' className='text-sky-700 hover:text-sky-800'>
                   <i className="fi fi-rr-key"></i>
                 </button>
-                <button type='button' className='text-emerald-500 hover:text-emerald-600'>
+                <button type='button' onClick={scrollToRef} className={`${connection ? 'text-emerald-500' : 'text-red-500'}`}>
                   <i className="fi fi-rr-wifi"></i>
                 </button>
                 {
@@ -269,12 +300,12 @@ const Students = () => {
                 </section>
               )
             }
-            <section className={`w-full max-w-lg mx-auto bg-cover bg-slate-300 bg-blend-multiply h-screen overflow-y-auto p-5 shadow-inner`} style={{ backgroundImage: `url(${BackgroundPattern})` }}>
+            <section ref={chatContainerRef} className={`w-full max-w-lg mx-auto bg-cover bg-slate-300 bg-blend-multiply h-screen overflow-y-auto p-5 shadow-inner`} style={{ backgroundImage: `url(${BackgroundPattern})` }}>
               <div className='flex flex-col gap-3'>
                 {chats.length > 0 && chats.map((chat) => (
                   <div key={chat.id}>
                     {chat.client === client ? (
-                      <div className={`w-full flex justify-end`}>
+                      <div className="w-full flex justify-end">
                         <div className="w-5/6 bg-sky-500 rounded-br-none shadow-sm p-5 rounded-2xl">
                           <div className="space-y-5">
                             <p className="text-sm text-white">{chat.message}</p>
@@ -286,7 +317,7 @@ const Students = () => {
                         </div>
                       </div>
                     ) : (
-                      <div className={`w-full flex justify-start`}>
+                      <div className="w-full flex justify-start">
                         <div className="w-5/6 bg-white rounded-bl-none shadow-sm p-5 rounded-2xl">
                           <div className="space-y-5">
                             <div className="space-y-1">
@@ -303,6 +334,7 @@ const Students = () => {
                     )}
                   </div>
                 ))}
+
                 {/* <div className='w-full flex justify-start'>
                   <div className='w-5/6 bg-white shadow-sm p-5 rounded-2xl rounded-bl-none'>
                     <div className='mb-4 space-y-1'>
