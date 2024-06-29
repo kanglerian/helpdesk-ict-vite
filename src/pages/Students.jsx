@@ -30,6 +30,7 @@ const Students = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
+  const [button, setButton] = useState(true);
 
   const Authentication = () => {
     const queryParams = searchParams.get("room");
@@ -154,6 +155,7 @@ const Students = () => {
         reply: null,
         date: new Date()
       }
+      setButton(false);
       await axios.post('http://localhost:3001/chats', dataChat)
         .then((response) => {
           socket.emit('message', response.data)
@@ -161,6 +163,9 @@ const Students = () => {
           setTimeout(() => {
             scrollToRef();
           }, 100);
+          setTimeout(() => {
+            setButton(true);
+          }, 3000);
         })
         .catch((error) => {
           console.log(error);
@@ -216,18 +221,26 @@ const Students = () => {
       setConnection(false);
     }
 
-    function onHelp(help) {
-      setChats(prevChat => [...prevChat, help]);
+    function onMessage(message) {
+      const queryParams = searchParams.get("room");
+      const roomQueryParam = queryParams || 'anonymous';
+      const roomStringify = localStorage.getItem('HELPDESK:room');
+      if(roomStringify){
+        const roomParse = JSON.parse(roomStringify);
+        if(message.token == roomParse.token && (message.reply == roomQueryParam || message.client == roomQueryParam)){
+          setChats(prevChat => [...prevChat, message]);
+        }
+      }
     }
 
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
-    socket.on('help', onHelp);
+    socket.on('message', onMessage);
 
     return () => {
       socket.off('connect', onConnect);
       socket.off('disconnect', onDisconnect);
-      socket.off('help', onHelp);
+      socket.off('message', onMessage);
     };
   }, []);
 
@@ -334,40 +347,25 @@ const Students = () => {
                     )}
                   </div>
                 ))}
-
-                {/* <div className='w-full flex justify-start'>
-                  <div className='w-5/6 bg-white shadow-sm p-5 rounded-2xl rounded-bl-none'>
-                    <div className='mb-4 space-y-1'>
-                      <h3 className='font-bold text-base text-gray-900'>Career Center</h3>
-                      <p className='text-sm text-gray-700'>Lorem ipsum dolor sit amet consectetur adipisicing elit. Nemo, cupiditate.</p>
-                    </div>
-                    <button type='button' className='text-gray-500 hover:text-gray-600 flex items-end gap-1'>
-                      <span className='block text-xs'><i className="fi fi-rr-marker"></i></span>
-                      <span className='block text-xs'>Selasa, 24 Maret 2024. 20:22 WIB</span>
-                    </button>
-                  </div>
-                </div>
-                <div className='w-full flex justify-end'>
-                  <div className='w-5/6 bg-sky-500 shadow-sm p-5 rounded-2xl rounded-br-none'>
-                    <p className='text-sm text-white'>Lorem ipsum dolor sit amet consectetur adipisicing elit. Nemo, cupiditate.</p>
-                  </div>
-                </div> */}
               </div>
             </section>
             <div className='w-full max-w-lg bg-white mx-auto px-8 pt-8 pb-5'>
               <div className='space-y-3'>
-                <form onSubmit={sendMessage} className="flex items-center gap-2 max-w-lg mx-auto">
-                  <div className="relative w-full">
-                    <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-                      <i className="fi fi-rr-comment text-gray-500"></i>
+                {
+                  button &&
+                  <form onSubmit={sendMessage} className="flex items-center gap-2 max-w-lg mx-auto">
+                    <div className="relative w-full">
+                      <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
+                        <i className="fi fi-rr-comment text-gray-500"></i>
+                      </div>
+                      <input type="text" value={message} onChange={(e) => setMessage(e.target.value)} className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5" placeholder="Tulis pesan disini..." required />
                     </div>
-                    <input type="text" value={message} onChange={(e) => setMessage(e.target.value)} className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5" placeholder="Tulis pesan disini..." required />
-                  </div>
-                  <button type="submit" className="flex gap-2 items-center justify-center py-2.5 px-3 text-sm font-medium text-white bg-sky-600 rounded-xl hover:bg-sky-700 focus:ring-4 focus:outline-none focus:ring-blue-300">
-                    <i className="flex fi fi-rr-paper-plane"></i>
-                    <span>Kirim</span>
-                  </button>
-                </form>
+                    <button type="submit" className="flex gap-2 items-center justify-center py-2.5 px-3 text-sm font-medium text-white bg-sky-600 rounded-xl hover:bg-sky-700 focus:ring-4 focus:outline-none focus:ring-blue-300">
+                      <i className="flex fi fi-rr-paper-plane"></i>
+                      <span>Kirim</span>
+                    </button>
+                  </form>
+                }
                 <div className='text-center space-y-1'>
                   <h5 className='font-bold text-xs text-gray-600'>Catatan:</h5>
                   <p className='text-xs text-gray-500 text-center'>Harap berikan deskripsi masalah yang jelas kepada tim ICT kami, sehingga kami dapat memberikan solusi yang tepat.</p>
