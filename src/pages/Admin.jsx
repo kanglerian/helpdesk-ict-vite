@@ -341,7 +341,7 @@ const Admin = () => {
                         </div>
                       </div>
                     ) : (
-                      <div className="w-full flex justify-start">
+                      <div className="w-full flex justify-start items-center gap-3">
                         <div className="w-5/6 bg-white rounded-bl-none shadow-sm p-5 rounded-2xl">
                           <div className="space-y-5">
                             <div className="space-y-1">
@@ -353,6 +353,11 @@ const Admin = () => {
                               <span className="block text-xs">{chat.date}</span>
                             </button>
                           </div>
+                        </div>
+                        <div className="w-1/6">
+                          <button type='button' onClick={() => setReplyMessage(chat.client)} className='bg-sky-500 hover:bg-sky-600 text-sky-100 h-10 w-10 rounded-full'>
+                            <i className="fi fi-rr-undo"></i>
+                          </button>
                         </div>
                       </div>
                     )}
