@@ -1,72 +1,61 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import axios from 'axios'
 import Lottie from "lottie-react";
+import axios from 'axios';
+import moment from 'moment-timezone';
 import chatAnimation from "../assets/chat-animation.json";
+import BackgroundPattern from '../assets/flatten.png'
 import Man from '../assets/man.png'
 import Custom from '../assets/custom.png'
 import Secret from '../assets/secret.png'
-import { io } from 'socket.io-client'
+import BellSound from '../assets/bell.mp3'
+import { socket } from '../socket'
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const [connection, setConnection] = useState(false);
+  const chatContainerRef = useRef(null);
   const [rooms, setRooms] = useState([]);
   const [chats, setChats] = useState([]);
+  const [connection, setConnection] = useState(false);
+
   const client = 'Administrator';
-  const [enableRoom, setEnableRoom] = useState(false);
-  const [active, setActive] = useState({
+  const [activeRoom, setActiveRoom] = useState({
     name: 'Utama',
     token: 46150,
     type: 0,
     secret: 0,
   });
+
+  const [enableRoom, setEnableRoom] = useState(false);
   const [logged, setLogged] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [replyMessage, setReplyMessage] = useState('');
   const [message, setMessage] = useState('');
-  const [helpdeskRoom, setHelpdeskRoom] = useState({});
-  const [helpdeskAccount, setHelpdeskAccount] = useState({});
+  const [canSendMessage, setCanSendMessage] = useState(true);
 
-  const socket = io('http://localhost:3000');
-
-  socket.on("connect", () => {
-    console.log('Berhasil terhubung ke server Socket.IO');
-    setConnection(true);
-  });
-
-  socket.on("connect_error", () => {
-    console.log('Koneksi ke server Socket.IO terputus. Pesan tidak terkirim. Coba lagi nanti.');
-    setConnection(false);
-  });
-
-  const checkActive = () => {
-    const room = localStorage.getItem('HELPDESK:room_dashboard');
-    const account = localStorage.getItem('HELPDESK:account_dashboard');
+  const Authentication = () => {
+    const room = localStorage.getItem('HELPDESK:room_admin');
+    const account = localStorage.getItem('HELPDESK:account_admin');
     if (account) {
-      const accountStorage = localStorage.getItem('HELPDESK:account_dashboard');
-      const resultAccount = JSON.parse(accountStorage);
-      setHelpdeskAccount(resultAccount);
       if (!room) {
-        let data = {
+        let roomActive = {
           name: "Utama",
           token: 46150,
           type: 0,
           secret: 0,
         }
-        setHelpdeskRoom(data);
-        localStorage.setItem('HELPDESK:room_dashboard', JSON.stringify(data));
+        localStorage.setItem('HELPDESK:room_admin', JSON.stringify(roomActive));
+        setActiveRoom(roomActive);
+        getChats(roomActive);
         getRooms();
-        getChats(data);
         setLogged(true)
       } else {
-        const roomStorage = localStorage.getItem('HELPDESK:room_dashboard');
-        const resultRoom = JSON.parse(roomStorage);
-        setHelpdeskRoom(resultRoom);
-        setActive(resultRoom);
+        const roomStorage = localStorage.getItem('HELPDESK:room_admin');
+        const roomActive = JSON.parse(roomStorage);
+        getChats(roomActive);
+        setActiveRoom(roomActive);
         getRooms();
-        getChats(resultRoom);
         setLogged(true)
       }
     }
@@ -78,23 +67,23 @@ const Dashboard = () => {
         setRooms(response.data);
       })
       .catch((error) => {
-        console.log(error.error);
+        console.log(error);
       })
   }
 
-  const getChats = async (helpdeskRoom) => {
+  const getChats = async (roomActive) => {
     await axios.get('http://localhost:3001/chats')
       .then((response) => {
         const responseChat = response.data;
         const resultFilter = responseChat.filter(
           (chat) =>
-            chat.token == helpdeskRoom.token &&
+            chat.token == roomActive.token &&
             chat.role_sender == 'S'
         );
         setChats(resultFilter);
       })
       .catch((error) => {
-        console.log(error.error);
+        console.log(error);
       })
   }
 
@@ -105,9 +94,8 @@ const Dashboard = () => {
       type: type,
       secret: secret,
     }
-    setHelpdeskRoom(data);
-    localStorage.setItem('HELPDESK:room_dashboard', JSON.stringify(data));
-    checkActive();
+    localStorage.setItem('HELPDESK:room_admin', JSON.stringify(data));
+    Authentication();
   }
 
   const manualRoom = () => {
@@ -119,9 +107,8 @@ const Dashboard = () => {
         type: 1,
         secret: 0,
       }
-      setHelpdeskRoom(data);
-      localStorage.setItem('HELPDESK:room_dashboard', JSON.stringify(data));
-      checkActive();
+      localStorage.setItem('HELPDESK:room_admin', JSON.stringify(data));
+      Authentication();
     }
   }
 
@@ -134,31 +121,40 @@ const Dashboard = () => {
         type: 1,
         secret: 1,
       }
-      setHelpdeskRoom(data);
-      localStorage.setItem('HELPDESK:room_dashboard', JSON.stringify(data));
-      checkActive();
+      localStorage.setItem('HELPDESK:room_admin', JSON.stringify(data));
+      Authentication();
     }
   }
 
   const removeToken = () => {
     const logoutPrompt = confirm('Apakah anda yakin akan keluar?');
     if (logoutPrompt) {
-      localStorage.removeItem('HELPDESK:room_dashboard');
-      localStorage.removeItem('HELPDESK:account_dashboard');
+      localStorage.removeItem('HELPDESK:room_admin');
+      localStorage.removeItem('HELPDESK:account_admin');
       setLogged(false);
       navigate('/dashboard')
     }
   }
 
+  const scrollToRef = () => {
+    if (chatContainerRef.current) {
+      if (chatContainerRef.current) {
+        const currentScroll = chatContainerRef.current.scrollHeight;
+        chatContainerRef.current.scrollTo({
+          top: currentScroll,
+          behavior: 'smooth'
+        });
+      }
+    }
+  };
+
+  const bellPlay = () => {
+    let audio = new Audio(BellSound);
+    audio.play();
+  }
 
   const loginFunc = async (e) => {
     e.preventDefault();
-    if(!username){
-      return alert('Username tidak boleh kosong!');
-    }
-    if(!password){
-      return alert('Password tidak boleh kosong!');
-    }
     try {
       const responseUser = await axios.get(`http://localhost:3001/users?username=${username}&password=${password}&role=A`)
       const dataUser = responseUser.data;
@@ -168,104 +164,161 @@ const Dashboard = () => {
           uuid: dataUser[0].uuid,
           role: dataUser[0].role
         }
-        setHelpdeskAccount(data);
-        localStorage.setItem('HELPDESK:account_dashboard', JSON.stringify(data));
+        localStorage.setItem('HELPDESK:account_admin', JSON.stringify(data));
         setLogged(true)
-        checkActive()
+        Authentication()
       } else {
         alert('Username atau Password salah!')
         setLogged(false)
       }
-    } catch (error) {
-      alert(error.message);
+    } catch (err) {
+      console.log(err);
     }
   }
 
   useEffect(() => {
-    checkActive();
+    Authentication();
+
+    setTimeout(() => {
+      scrollToRef();
+    }, 500);
+
+    function onConnect() {
+      console.log('Connected!');
+      setConnection(true);
+    }
+
+    function onDisconnect() {
+      console.log('Disconnected!');
+      setConnection(false);
+    }
+
+    function onMessage(message) {
+      const roomStringify = localStorage.getItem('HELPDESK:room_admin');
+      if (roomStringify) {
+        const roomParse = JSON.parse(roomStringify);
+        if (message.token == roomParse.token && message.role_sender == 'S') {
+          setChats(prevChat => [...prevChat, message]);
+          setTimeout(() => {
+            scrollToRef();
+            if (message.role_sender == 'S') {
+              bellPlay();
+            }
+          }, 100);
+        }
+      }
+    }
+
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
+    socket.on('message', onMessage);
+
+    return () => {
+      socket.off('connect', onConnect);
+      socket.off('disconnect', onDisconnect);
+      socket.off('message', onMessage);
+    };
   }, []);
+
   return (
-    <main className='bg-slate-900 h-screen'>
+    <main className={`bg-slate-50 overflow-hidden`}>
       {
         logged ? (
-          <section className="w-full bg-slate-900 h-screen overflow-y-auto p-5 pt-8 md:p-14">
-            <nav className='fixed top-0 left-0 right-0 grid grid-cols-1 md:grid-cols-3 gap-5 items-center w-full bg-white p-5'>
-              <div className='flex items-end justify-center md:justify-start gap-2'>
-                <i className="fi fi-rr-user-headset text-xl"></i>
-                <h1 className='font-bold text-xl'>Chat {active.name}</h1>
-              </div>
-              {
-                rooms.length > 0 && (
-                  <section className="flex items-center justify-center md:justify-end gap-10">
-                    {rooms.map((roomItem) => (
-                      <button
-                        key={roomItem.id}
-                        type="button"
-                        onClick={() => changeRoom(roomItem.name, roomItem.token, roomItem.type, roomItem.secret)}
-                        className="w-auto flex flex-col items-center space-y-1 p-1 md:p-0"
-                      >
-                        <div className="w-full flex flex-col items-center justify-center gap-1">
-                          <div
-                            className="w-10 h-10 bg-cover bg-center"
-                            style={{ backgroundImage: `url(${Man})` }}
-                          ></div>
-                          <h4 className="text-xs text-gray-800 font-medium">{roomItem.name}</h4>
+          <section className='flex flex-col justify-between h-screen'>
+            {
+              rooms.length > 0 && enableRoom && (
+                <section className="w-full pb-8 pt-5 px-10 mx-auto bg-white flex justify-center flex-nowrap overflow-x-auto border-slate-200 text-slate-500 gap-5">
+                  {rooms.map((roomItem) => (
+                    <button
+                      key={roomItem.id}
+                      type="button"
+                      onClick={() => changeRoom(roomItem.name, roomItem.token, roomItem.type, roomItem.secret)}
+                      className="w-auto flex flex-col items-center space-y-1 p-1 md:p-0"
+                    >
+                      <div className="w-full flex flex-col items-center justify-center gap-1">
+                        <div
+                          className="w-10 h-10 bg-cover bg-center"
+                          style={{ backgroundImage: `url(${Man})` }}
+                        ></div>
+                        <h4 className="text-xs text-slate-800 font-medium">{roomItem.name}</h4>
+                      </div>
+                    </button>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={manualRoom}
+                    className="w-auto flex flex-col items-center space-y-1 p-1 md:p-0"
+                  >
+                    <div className="w-full flex flex-col items-center justify-center gap-1">
+                      <div className="w-10 h-10 bg-cover bg-center" style={{ backgroundImage: `url(${Custom})` }}></div>
+                      <h4 className="text-xs text-slate-800 font-medium">Manual</h4>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={secretRoom}
+                    className="w-auto flex flex-col items-center space-y-1 p-1 md:p-0"
+                  >
+                    <div className="w-full flex flex-col items-center justify-center gap-1">
+                      <div className="w-10 h-10 bg-cover bg-center" style={{ backgroundImage: `url(${Secret})` }}></div>
+                      <h4 className="text-xs text-slate-800 font-medium">Secret</h4>
+                    </div>
+                  </button>
+                </section>
+              )
+            }
+            <section ref={chatContainerRef} className={`w-full mx-auto bg-cover bg-slate-900 bg-blend-multiply h-screen overflow-y-auto p-5 pb-16 shadow-inner`} style={{ backgroundImage: `url(${BackgroundPattern})` }}>
+              <div className='flex flex-col gap-5'>
+                {chats.length > 0 && chats.map((chat, index) => (
+                  <div key={index}>
+                    <div className="w-full flex justify-start items-center gap-3">
+                      <div className="w-full bg-slate-700 rounded-bl-none shadow-sm p-5 rounded-2xl">
+                        <div className="space-y-5 md:space-y-10">
+                          <div className="space-y-1 md:space-y-3">
+                            <h3 className="font-bold text-sm md:text-xl text-slate-300">Ruangan {chat.client}</h3>
+                            <p className="text-base md:text-2xl text-slate-100">{chat.message}</p>
+                          </div>
+                          <div className='flex items-center justify-between'>
+                            <a target='_blank' href={`https://google.com/maps?q=${chat.latitude},${chat.longitude}`} className="text-slate-500 hover:text-slate-600 flex items-center gap-1">
+                              <span className="block text-xs"><i className="fi fi-rr-marker flex"></i></span>
+                              <span className="block text-xs">{moment(chat.date).tz('Asia/Jakarta').format('LLLL')}</span>
+                            </a>
+                            <p className='flex items-center gap-1 text-xs text-slate-500'>
+                              <i className="fi fi-rr-circle-user flex"></i>
+                              <span>{chat.name_sender}</span>
+                            </p>
+                          </div>
                         </div>
-                      </button>
-                    ))}
-
-                    <button
-                      type="button"
-                      onClick={manualRoom}
-                      className="w-auto flex flex-col items-center space-y-1 p-1 md:p-0"
-                    >
-                      <div className="w-full flex flex-col items-center justify-center gap-1">
-                        <div className="w-10 h-10 bg-cover bg-center" style={{ backgroundImage: `url(${Custom})` }}></div>
-                        <h4 className="text-xs text-gray-800 font-medium">Manual</h4>
                       </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={secretRoom}
-                      className="w-auto flex flex-col items-center space-y-1 p-1 md:p-0"
-                    >
-                      <div className="w-full flex flex-col items-center justify-center gap-1">
-                        <div className="w-10 h-10 bg-cover bg-center" style={{ backgroundImage: `url(${Secret})` }}></div>
-                        <h4 className="text-xs text-gray-800 font-medium">Secret</h4>
-                      </div>
-                    </button>
-                  </section>
-                )
-              }
-              <div className='flex items-center justify-center md:justify-end gap-5'>
-                <button type='button' className={`${connection ? 'text-emerald-500' : 'text-red-500'}`}>
-                  <i className="fi fi-rr-wifi"></i>
-                </button>
-                <button onClick={removeToken} type='button' className='text-sky-700 hover:text-sky-800'>
-                  <i className="fi fi-rr-key"></i>
-                </button>
-              </div>
-            </nav>
-            <div className='flex flex-col gap-5 pt-52 md:pt-20'>
-
-              {
-                chats.length > 0 && chats.map((chat) =>
-                  <div key={chat.id} className='w-full flex flex-col md:flex-row justify-start items-center gap-5'>
-                    <div className='w-full bg-slate-700 shadow-sm p-8 rounded-2xl rounded-bl-none'>
-                      <div className='mb-5 space-y-1'>
-                        <h3 className='font-bold text-xl md:text-3xl text-slate-50'>{chat.client}</h3>
-                        <p className='text-base md:text-lg text-slate-200'>{chat.message}</p>
-                      </div>
-                      <button type='button' className=' text-slate-500 hover:text-slate-600 flex items-end gap-1'>
-                        <span className='block text-xs'><i className="fi fi-rr-marker"></i></span>
-                        <span className='block text-xs'>{chat.date}</span>
-                      </button>
                     </div>
                   </div>
-                )
-              }
-            </div>
+                ))}
+              </div>
+            </section>
+            <footer className={`flex flex-col md:flex-row items-center justify-between gap-5 md:gap-0 w-full mx-auto ${connection ? 'bg-emerald-500' : 'bg-red-500'} p-5`}>
+              <a href='https://kanglerian.github.io' target='_blank' className='order-2 md:order-1 block text-center text-xs text-slate-800 hover:text-slate-900'>Copyright © 2024 Lerian Febriana, A.Md.Kom</a>
+              <div className='order-1 md:order-2 flex items-center gap-5'>
+                <div className='flex items-center gap-2 text-slate-800'>
+                  <i className="fi fi-rr-user-headset text-xl flex"></i>
+                  <h1 className='font-bold text-xl'>Dashboard Chat {activeRoom.name}</h1>
+                </div>
+                |
+                <button onClick={bellPlay} type='button' className='text-slate-800 hover:text-slate-900'>
+                  <i className="fi fi-rr-bell-ring flex"></i>
+                </button>
+                <button onClick={removeToken} type='button' className='text-slate-800 hover:text-slate-900'>
+                  <i className="fi fi-rr-key flex"></i>
+                </button>
+                {
+                  rooms.length > 0 &&
+                  <button onClick={() => setEnableRoom(!enableRoom)} type='button' className='text-slate-800 hover:text-slate-900'>
+                    <i className="fi fi-rr-dropdown-select flex"></i>
+                  </button>
+                }
+              </div>
+            </footer>
           </section>
         ) : (
           <section className='bg-sky-800 flex flex-col items-center justify-center h-screen'>
@@ -280,13 +333,13 @@ const Dashboard = () => {
                 <span>{`${connection ? 'Connected' : 'Disconnected'}`}</span>
               </p>
               <form onSubmit={loginFunc} className='flex flex-col items-center gap-2'>
-                <input type="text" id='username' value={username} onChange={(e) => setUsername(e.target.value)} placeholder='Username' className='bg-sky-100 text-sky-900 text-sm rounded-xl block w-full px-4 py-2.5 border border-sky-800 focus:ring-sky-500 focus:border-sky-500' required />
-                <input type="password" id='password' value={password} onChange={(e) => setPassword(e.target.value)} placeholder='Password' className='bg-sky-100 text-sky-900 text-sm rounded-xl block w-full px-4 py-2.5 border border-sky-800 focus:ring-sky-500 focus:border-sky-500' required />
+                <input type="text" id='username' value={username} onChange={(e) => setUsername(e.target.value)} placeholder='Username' className='bg-sky-100 text-sky-900 text-sm rounded-xl block w-full px-4 py-2.5 border border-sky-800 focus:ring-sky-500 focus:border-sky-500' />
+                <input type="password" id='password' value={password} onChange={(e) => setPassword(e.target.value)} placeholder='Password' className='bg-sky-100 text-sky-900 text-sm rounded-xl block w-full px-4 py-2.5 border border-sky-800 focus:ring-sky-500 focus:border-sky-500' />
                 <button type="submit" className="w-full flex gap-2 items-center justify-center py-2.5 px-3 text-sm font-medium text-white bg-sky-600 rounded-xl hover:bg-sky-700 focus:ring-4 focus:outline-none focus:ring-blue-300">
                   <span>Sign In</span>
                 </button>
               </form>
-              <p className='text-xs text-sky-400'>Copyright © 2024 Politeknik LP3I Kampus Tasikmalaya</p>
+              <a href="https://kanglerian.github.io" target="_blank" className='blocktext-xs text-sky-400'>Copyright © 2024 Politeknik LP3I Kampus Tasikmalaya</a>
             </div>
           </section>
         )

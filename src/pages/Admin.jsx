@@ -151,7 +151,9 @@ const Admin = () => {
         role_sender: accountParse.role,
         message: message,
         reply: replyMessage,
-        date: new Date()
+        date: new Date(),
+        latitude: null,
+        longitude: null
       }
       setCanSendMessage(false);
       await axios.post('http://localhost:3001/chats', dataChat)
@@ -340,10 +342,9 @@ const Admin = () => {
                               </div>
                               <p className="text-sm text-white">{chat.message}</p>
                             </div>
-                            <a target='_blank' href={`https://google.com/maps?q=${chat.latitude},${chat.longitude}`} className="text-sky-200 hover:text-sky-300 flex items-center gap-1">
-                              <span className="block text-xs"><i className="fi fi-rr-marker flex"></i></span>
+                            <p className="text-sky-200 flex items-center gap-1">
                               <span className="block text-xs">{moment(chat.date).tz('Asia/Jakarta').format('LLLL')}</span>
-                            </a>
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -408,7 +409,7 @@ const Admin = () => {
               </div>
             </div>
             <footer className='w-full max-w-lg mx-auto bg-white py-2'>
-              <p className='text-center text-[10px] text-gray-600'>Copyright © 2024 Lerian Febriana, A.Md.Kom</p>
+              <a href='https://kanglerian.github.io' target='_blank' className='block text-center text-[10px] text-gray-600'>Copyright © 2024 Lerian Febriana, A.Md.Kom</a>
             </footer>
           </section>
         ) : (
@@ -419,6 +420,10 @@ const Admin = () => {
                 <h2 className='font-bold text-2xl text-white'>Admin Helpdesk Chat</h2>
                 <p className='text-sm text-sky-200'>Make simple chat for quick problem solving.</p>
               </div>
+              <p className={`${connection ? 'bg-emerald-500' : 'bg-red-500'} text-white text-xs py-2 rounded-xl`}>
+                <i className="fi fi-rr-wifi text-[12px] mr-1"></i>
+                <span>{`${connection ? 'Connected' : 'Disconnected'}`}</span>
+              </p>
               <form onSubmit={loginFunc} className='flex flex-col items-center gap-2'>
                 <input type="text" id='username' value={username} onChange={(e) => setUsername(e.target.value)} placeholder='Username' className='bg-sky-100 text-sky-900 text-sm rounded-xl block w-full px-4 py-2.5 border border-sky-800 focus:ring-sky-500 focus:border-sky-500' />
                 <input type="password" id='password' value={password} onChange={(e) => setPassword(e.target.value)} placeholder='Password' className='bg-sky-100 text-sky-900 text-sm rounded-xl block w-full px-4 py-2.5 border border-sky-800 focus:ring-sky-500 focus:border-sky-500' />
@@ -426,7 +431,7 @@ const Admin = () => {
                   <span>Sign In</span>
                 </button>
               </form>
-              <p className='text-xs text-sky-400'>Copyright © 2024 Politeknik LP3I Kampus Tasikmalaya</p>
+              <a href='https://kanglerian.github.io' target='_blank' className='block text-xs text-sky-400'>Copyright © 2024 Lerian Febriana, A.Md.Kom</a>
             </div>
           </section>
         )
