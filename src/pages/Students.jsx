@@ -1,13 +1,14 @@
 import { useEffect, useState, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import Lottie from "lottie-react";
+import moment from 'moment-timezone';
+import axios from 'axios';
 import chatAnimation from "../assets/chat-animation.json";
 import BackgroundPattern from '../assets/flatten.png'
 import Man from '../assets/man.png'
 import Custom from '../assets/custom.png'
 import Secret from '../assets/secret.png'
 import BellSound from '../assets/bell.mp3'
-import axios from 'axios';
 import { socket } from '../socket'
 
 const Students = () => {
@@ -32,6 +33,8 @@ const Students = () => {
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
   const [canSendMessage, setCanSendMessage] = useState(true);
+  const [latitude, setLatitude] = useState(null);
+  const [longitude, setLongitude] = useState(null);
 
   const Authentication = () => {
     const queryParams = searchParams.get("room");
@@ -87,6 +90,20 @@ const Students = () => {
       .catch((error) => {
         console.log(error);
       })
+  }
+
+  const getLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setLatitude(position.coords.latitude);
+          setLongitude(position.coords.longitude);
+        },
+        (error) => {
+          console.log(error.message);
+        }
+      );
+    }
   }
 
   const changeRoom = (name, token, type, secret) => {
@@ -154,7 +171,9 @@ const Students = () => {
         role_sender: accountParse.role,
         message: message,
         reply: null,
-        date: new Date()
+        date: new Date(),
+        latitude: latitude,
+        longitude: longitude
       }
       setCanSendMessage(false);
       await axios.post('http://localhost:3001/chats', dataChat)
@@ -213,6 +232,7 @@ const Students = () => {
 
   useEffect(() => {
     Authentication();
+    getLocation();
 
     setTimeout(() => {
       scrollToRef();
@@ -355,10 +375,9 @@ const Students = () => {
                         <div className="w-5/6 bg-sky-500 rounded-br-none shadow-sm p-5 rounded-2xl">
                           <div className="space-y-5">
                             <p className="text-sm text-white">{chat.message}</p>
-                            <button type="button" className="text-sky-200 hover:text-sky-300 flex items-end gap-1">
-                              <span className="block text-xs"><i className="fi fi-rr-marker"></i></span>
-                              <span className="block text-xs">{chat.date}</span>
-                            </button>
+                            <p className="text-sky-200 flex items-center gap-1">
+                              <span className="block text-xs">{moment(chat.date).tz('Asia/Jakarta').format('LLLL')}</span>
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -370,10 +389,9 @@ const Students = () => {
                               <h3 className="font-bold text-base text-gray-900">{chat.client}</h3>
                               <p className="text-sm text-gray-700">{chat.message}</p>
                             </div>
-                            <button type="button" className="text-gray-500 hover:text-gray-600 flex items-end gap-1">
-                              <span className="block text-xs"><i className="fi fi-rr-marker"></i></span>
-                              <span className="block text-xs">{chat.date}</span>
-                            </button>
+                            <p className="text-gray-500 flex items-center gap-1">
+                              <span className="block text-xs">{moment(chat.date).tz('Asia/Jakarta').format('LLLL')}</span>
+                            </p>
                           </div>
                         </div>
                       </div>

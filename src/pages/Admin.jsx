@@ -1,13 +1,14 @@
 import { useEffect, useState, useRef } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import Lottie from "lottie-react";
+import axios from 'axios';
+import moment from 'moment-timezone';
 import chatAnimation from "../assets/chat-animation.json";
 import BackgroundPattern from '../assets/flatten.png'
 import Man from '../assets/man.png'
 import Custom from '../assets/custom.png'
 import Secret from '../assets/secret.png'
 import BellSound from '../assets/bell.mp3'
-import axios from 'axios';
 import { socket } from '../socket'
 
 const Admin = () => {
@@ -142,7 +143,7 @@ const Admin = () => {
       const accountParse = JSON.parse(accountStringify);
       const roomParse = JSON.parse(roomStringify);
       const dataChat = {
-        client: 'Administrator',
+        client: accountParse.name,
         name_room: roomParse.name,
         token: roomParse.token,
         uuid_sender: accountParse.uuid,
@@ -332,11 +333,17 @@ const Admin = () => {
                       <div className="w-full flex justify-end">
                         <div className="w-5/6 bg-sky-500 rounded-br-none shadow-sm p-5 rounded-2xl">
                           <div className="space-y-5">
-                            <p className="text-sm text-white">{chat.message}</p>
-                            <button type="button" className="text-sky-200 hover:text-sky-300 flex items-end gap-1">
-                              <span className="block text-xs"><i className="fi fi-rr-marker"></i></span>
-                              <span className="block text-xs">{chat.date}</span>
-                            </button>
+                            <div className='space-y-2'>
+                              <div className="flex items-center gap-1 text-[11px] text-sky-200">
+                                <i className="fi fi-rr-arrow-turn-down-right flex text-[10px]"></i>
+                                <span>Reply for {chat.reply}</span>
+                              </div>
+                              <p className="text-sm text-white">{chat.message}</p>
+                            </div>
+                            <a target='_blank' href={`https://google.com/maps?q=${chat.latitude},${chat.longitude}`} className="text-sky-200 hover:text-sky-300 flex items-center gap-1">
+                              <span className="block text-xs"><i className="fi fi-rr-marker flex"></i></span>
+                              <span className="block text-xs">{moment(chat.date).tz('Asia/Jakarta').format('LLLL')}</span>
+                            </a>
                           </div>
                         </div>
                       </div>
@@ -345,13 +352,19 @@ const Admin = () => {
                         <div className="w-5/6 bg-white rounded-bl-none shadow-sm p-5 rounded-2xl">
                           <div className="space-y-5">
                             <div className="space-y-1">
-                              <h3 className="font-bold text-base text-gray-900">{chat.client}</h3>
+                              <h3 className="font-bold text-base text-gray-900">Ruangan {chat.client}</h3>
                               <p className="text-sm text-gray-700">{chat.message}</p>
                             </div>
-                            <button type="button" className="text-gray-500 hover:text-gray-600 flex items-end gap-1">
-                              <span className="block text-xs"><i className="fi fi-rr-marker"></i></span>
-                              <span className="block text-xs">{chat.date}</span>
-                            </button>
+                            <div className='flex items-center justify-between'>
+                              <a target='_blank' href={`https://google.com/maps?q=${chat.latitude},${chat.longitude}`} className="text-gray-500 hover:text-gray-600 flex items-center gap-1">
+                                <span className="block text-xs"><i className="fi fi-rr-marker flex"></i></span>
+                                <span className="block text-xs">{moment(chat.date).tz('Asia/Jakarta').format('LLLL')}</span>
+                              </a>
+                              <p className='flex items-center gap-1 text-xs text-gray-500'>
+                                <i className="fi fi-rr-circle-user flex"></i>
+                                <span>{chat.name_sender}</span>
+                              </p>
+                            </div>
                           </div>
                         </div>
                         <div className="w-1/6">
