@@ -166,6 +166,7 @@ const Students = () => {
         client: client,
         name_room: roomParse.name,
         token: roomParse.token,
+        not_save: roomParse.secret,
         uuid_sender: accountParse.uuid,
         name_sender: accountParse.name,
         role_sender: accountParse.role,
