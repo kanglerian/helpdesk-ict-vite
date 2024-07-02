@@ -18,40 +18,25 @@ const Dashboard = () => {
   const [chats, setChats] = useState([]);
   const [connection, setConnection] = useState(false);
 
-  const client = 'Administrator';
-  const [activeRoom, setActiveRoom] = useState({
-    name: 'Utama',
-    token: 46150,
-    type: 0,
-    secret: 0,
-  });
+  const [activeRoom, setActiveRoom] = useState(null);
 
   const [enableRoom, setEnableRoom] = useState(false);
   const [logged, setLogged] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [replyMessage, setReplyMessage] = useState('');
-  const [message, setMessage] = useState('');
-  const [canSendMessage, setCanSendMessage] = useState(true);
+  const [token, setToken] = useState('46150');
 
   const Authentication = () => {
-    const room = localStorage.getItem('HELPDESK:room_admin');
-    const account = localStorage.getItem('HELPDESK:account_admin');
+    const room = localStorage.getItem('HELPDESK:room_dashboard');
+    const account = localStorage.getItem('HELPDESK:account_dashboard');
     if (account) {
       if (!room) {
-        let roomActive = {
-          name: "Utama",
-          token: 46150,
-          type: 0,
-          secret: 0,
-        }
-        localStorage.setItem('HELPDESK:room_admin', JSON.stringify(roomActive));
-        setActiveRoom(roomActive);
-        getChats(roomActive);
-        getRooms();
-        setLogged(true)
+        localStorage.removeItem('HELPDESK:room_dashboard');
+        localStorage.removeItem('HELPDESK:account_dashboard');
+        setLogged(false);
+        navigate('/admin')
       } else {
-        const roomStorage = localStorage.getItem('HELPDESK:room_admin');
+        const roomStorage = localStorage.getItem('HELPDESK:room_dashboard');
         const roomActive = JSON.parse(roomStorage);
         getChats(roomActive);
         setActiveRoom(roomActive);
@@ -62,7 +47,7 @@ const Dashboard = () => {
   }
 
   const getRooms = async () => {
-    await axios.get('http://localhost:3001/rooms')
+    await axios.get('http://localhost:3000/rooms')
       .then((response) => {
         setRooms(response.data);
       })
@@ -72,15 +57,10 @@ const Dashboard = () => {
   }
 
   const getChats = async (roomActive) => {
-    await axios.get('http://localhost:3001/chats')
+    await axios.get(`http://localhost:3000/chats/dashboard/${roomActive.token}`)
       .then((response) => {
         const responseChat = response.data;
-        const resultFilter = responseChat.filter(
-          (chat) =>
-            chat.token == roomActive.token &&
-            chat.role_sender == 'S'
-        );
-        setChats(resultFilter);
+        setChats(responseChat);
       })
       .catch((error) => {
         console.log(error);
@@ -94,7 +74,7 @@ const Dashboard = () => {
       type: type,
       secret: secret,
     }
-    localStorage.setItem('HELPDESK:room_admin', JSON.stringify(data));
+    localStorage.setItem('HELPDESK:room_dashboard', JSON.stringify(data));
     Authentication();
   }
 
@@ -104,10 +84,10 @@ const Dashboard = () => {
       let data = {
         name: 'Custom',
         token: inputManual,
-        type: 1,
-        secret: 0,
+        type: true,
+        secret: false,
       }
-      localStorage.setItem('HELPDESK:room_admin', JSON.stringify(data));
+      localStorage.setItem('HELPDESK:room_dashboard', JSON.stringify(data));
       Authentication();
     }
   }
@@ -118,10 +98,10 @@ const Dashboard = () => {
       let data = {
         name: 'Secret',
         token: inputManual,
-        type: 1,
-        secret: 1,
+        type: true,
+        secret: true,
       }
-      localStorage.setItem('HELPDESK:room_admin', JSON.stringify(data));
+      localStorage.setItem('HELPDESK:room_dashboard', JSON.stringify(data));
       Authentication();
     }
   }
@@ -129,8 +109,8 @@ const Dashboard = () => {
   const removeToken = () => {
     const logoutPrompt = confirm('Apakah anda yakin akan keluar?');
     if (logoutPrompt) {
-      localStorage.removeItem('HELPDESK:room_admin');
-      localStorage.removeItem('HELPDESK:account_admin');
+      localStorage.removeItem('HELPDESK:room_dashboard');
+      localStorage.removeItem('HELPDESK:account_dashboard');
       setLogged(false);
       navigate('/dashboard')
     }
@@ -156,23 +136,34 @@ const Dashboard = () => {
   const loginFunc = async (e) => {
     e.preventDefault();
     try {
-      const responseUser = await axios.get(`http://localhost:3001/users?username=${username}&password=${password}&role=A`)
+      const responseUser = await axios.post(`http://localhost:3000/auth/admin/login`, {
+        username: username,
+        password: password
+      });
+      const responseRoom = await axios.get(`http://localhost:3000/rooms/${token}`)
       const dataUser = responseUser.data;
-      if (dataUser.length > 0) {
-        let data = {
-          name: dataUser[0].name,
-          uuid: dataUser[0].uuid,
-          role: dataUser[0].role
-        }
-        localStorage.setItem('HELPDESK:account_admin', JSON.stringify(data));
-        setLogged(true)
-        Authentication()
-      } else {
-        alert('Username atau Password salah!')
-        setLogged(false)
+      const dataRoom = responseRoom.data;
+
+      let dataHelpdeskRoom = {
+        name: dataRoom.name,
+        token: dataRoom.token,
+        type: dataRoom.type,
+        secret: dataRoom.secret,
       }
+
+      let dataHelpdeskAccount = {
+        name: dataUser.name,
+        uuid: dataUser.uuid,
+        role: dataUser.role
+      }
+
+      localStorage.setItem('HELPDESK:room_admin', JSON.stringify(dataHelpdeskRoom));
+      localStorage.setItem('HELPDESK:account_admin', JSON.stringify(dataHelpdeskAccount));
+      setLogged(true);
+      Authentication();
     } catch (err) {
       console.log(err);
+      alert(err.response.data.message);
     }
   }
 
@@ -194,7 +185,7 @@ const Dashboard = () => {
     }
 
     function onMessage(message) {
-      const roomStringify = localStorage.getItem('HELPDESK:room_admin');
+      const roomStringify = localStorage.getItem('HELPDESK:room_dashboard');
       if (roomStringify) {
         const roomParse = JSON.parse(roomStringify);
         if (message.token == roomParse.token && message.role_sender == 'S') {
@@ -269,7 +260,7 @@ const Dashboard = () => {
                 </section>
               )
             }
-            <section ref={chatContainerRef} className={`w-full mx-auto bg-cover bg-slate-900 bg-blend-multiply h-screen overflow-y-auto p-5 pb-16 shadow-inner`} style={{ backgroundImage: `url(${BackgroundPattern})` }}>
+            <section ref={chatContainerRef} className={`w-full mx-auto bg-cover bg-slate-900 bg-blend-multiply h-screen overflow-y-auto p-5 md:p-10 pb-16 shadow-inner`} style={{ backgroundImage: `url(${BackgroundPattern})` }}>
               <div className='flex flex-col gap-5'>
                 {chats.length > 0 && chats.map((chat, index) => (
                   <div key={index}>
@@ -302,7 +293,7 @@ const Dashboard = () => {
               <div className='order-1 md:order-2 flex items-center gap-5'>
                 <div className='flex items-center gap-2 text-slate-800'>
                   <i className="fi fi-rr-user-headset text-xl flex"></i>
-                  <h1 className='font-bold text-xl'>Dashboard Chat {activeRoom.name}</h1>
+                  <h1 className='font-bold text-xl'>Dashboard Help Chat {activeRoom.name}</h1>
                 </div>
                 |
                 <button onClick={bellPlay} type='button' className='text-slate-800 hover:text-slate-900'>
@@ -333,13 +324,14 @@ const Dashboard = () => {
                 <span>{`${connection ? 'Connected' : 'Disconnected'}`}</span>
               </p>
               <form onSubmit={loginFunc} className='flex flex-col items-center gap-2'>
-                <input type="text" id='username' value={username} onChange={(e) => setUsername(e.target.value)} placeholder='Username' className='bg-sky-100 text-sky-900 text-sm rounded-xl block w-full px-4 py-2.5 border border-sky-800 focus:ring-sky-500 focus:border-sky-500' />
-                <input type="password" id='password' value={password} onChange={(e) => setPassword(e.target.value)} placeholder='Password' className='bg-sky-100 text-sky-900 text-sm rounded-xl block w-full px-4 py-2.5 border border-sky-800 focus:ring-sky-500 focus:border-sky-500' />
+                <input type="text" id='username' value={username} onChange={(e) => setUsername(e.target.value)} placeholder='Username' className='bg-sky-100 text-sky-900 text-sm rounded-xl block w-full px-4 py-2.5 border border-sky-800 focus:ring-sky-500 focus:border-sky-500' required />
+                <input type="password" id='password' value={password} onChange={(e) => setPassword(e.target.value)} placeholder='Password' className='bg-sky-100 text-sky-900 text-sm rounded-xl block w-full px-4 py-2.5 border border-sky-800 focus:ring-sky-500 focus:border-sky-500' required />
+                <input type="number" id='token' onChange={(e) => setToken(e.target.value)} placeholder='Token' className='bg-sky-100 text-sky-900 text-sm rounded-xl block w-full px-4 py-2.5 border border-sky-800 focus:ring-sky-500 focus:border-sky-500' required />
                 <button type="submit" className="w-full flex gap-2 items-center justify-center py-2.5 px-3 text-sm font-medium text-white bg-sky-600 rounded-xl hover:bg-sky-700 focus:ring-4 focus:outline-none focus:ring-blue-300">
                   <span>Sign In</span>
                 </button>
               </form>
-              <a href="https://kanglerian.github.io" target="_blank" className='blocktext-xs text-sky-400'>Copyright © 2024 Politeknik LP3I Kampus Tasikmalaya</a>
+              <a href="https://kanglerian.github.io" target="_blank" className='block text-xs text-sky-400'>Copyright © 2024 Politeknik LP3I Kampus Tasikmalaya</a>
             </div>
           </section>
         )

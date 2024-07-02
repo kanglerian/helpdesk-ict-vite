@@ -19,17 +19,13 @@ const Admin = () => {
   const [connection, setConnection] = useState(false);
 
   const client = 'Administrator';
-  const [activeRoom, setActiveRoom] = useState({
-    name: 'Utama',
-    token: 46150,
-    type: 0,
-    secret: 0,
-  });
+  const [activeRoom, setActiveRoom] = useState(null);
 
   const [enableRoom, setEnableRoom] = useState(false);
   const [logged, setLogged] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [token, setToken] = useState('46150');
   const [replyMessage, setReplyMessage] = useState('');
   const [message, setMessage] = useState('');
   const [canSendMessage, setCanSendMessage] = useState(true);
@@ -39,17 +35,10 @@ const Admin = () => {
     const account = localStorage.getItem('HELPDESK:account_admin');
     if (account) {
       if (!room) {
-        let roomActive = {
-          name: "Utama",
-          token: 46150,
-          type: 0,
-          secret: 0,
-        }
-        localStorage.setItem('HELPDESK:room_admin', JSON.stringify(roomActive));
-        setActiveRoom(roomActive);
-        getChats(roomActive);
-        getRooms();
-        setLogged(true)
+        localStorage.removeItem('HELPDESK:room_admin');
+        localStorage.removeItem('HELPDESK:account_admin');
+        setLogged(false);
+        navigate('/admin')
       } else {
         const roomStorage = localStorage.getItem('HELPDESK:room_admin');
         const roomActive = JSON.parse(roomStorage);
@@ -62,7 +51,7 @@ const Admin = () => {
   }
 
   const getRooms = async () => {
-    await axios.get('http://localhost:3001/rooms')
+    await axios.get('http://localhost:3000/rooms')
       .then((response) => {
         setRooms(response.data);
       })
@@ -72,14 +61,10 @@ const Admin = () => {
   }
 
   const getChats = async (roomActive) => {
-    await axios.get('http://localhost:3001/chats')
+    await axios.get(`http://localhost:3000/chats/admin/${roomActive.token}`)
       .then((response) => {
         const responseChat = response.data;
-        const resultFilter = responseChat.filter(
-          (chat) =>
-            chat.token == roomActive.token
-        );
-        setChats(resultFilter);
+        setChats(responseChat);
       })
       .catch((error) => {
         console.log(error);
@@ -103,8 +88,8 @@ const Admin = () => {
       let data = {
         name: 'Custom',
         token: inputManual,
-        type: 1,
-        secret: 0,
+        type: true,
+        secret: false,
       }
       localStorage.setItem('HELPDESK:room_admin', JSON.stringify(data));
       Authentication();
@@ -117,8 +102,8 @@ const Admin = () => {
       let data = {
         name: 'Secret',
         token: inputManual,
-        type: 1,
-        secret: 1,
+        type: true,
+        secret: true,
       }
       localStorage.setItem('HELPDESK:room_admin', JSON.stringify(data));
       Authentication();
@@ -157,18 +142,11 @@ const Admin = () => {
         longitude: null
       }
       setCanSendMessage(false);
-      await axios.post('http://localhost:3001/chats', dataChat)
-        .then((response) => {
-          socket.emit('message', response.data)
-          setReplyMessage('');
-          setMessage('');
-          setTimeout(() => {
-            setCanSendMessage(true);
-          }, 2000);
-        })
-        .catch((error) => {
-          console.log(error);
-        })
+      socket.emit('message', dataChat)
+      setMessage('');
+      setTimeout(() => {
+        setCanSendMessage(true);
+      }, 7000);
     }
   }
 
@@ -192,23 +170,34 @@ const Admin = () => {
   const loginFunc = async (e) => {
     e.preventDefault();
     try {
-      const responseUser = await axios.get(`http://localhost:3001/users?username=${username}&password=${password}&role=A`)
+      const responseUser = await axios.post(`http://localhost:3000/auth/admin/login`, {
+        username: username,
+        password: password
+      });
+      const responseRoom = await axios.get(`http://localhost:3000/rooms/${token}`)
       const dataUser = responseUser.data;
-      if (dataUser.length > 0) {
-        let data = {
-          name: dataUser[0].name,
-          uuid: dataUser[0].uuid,
-          role: dataUser[0].role
-        }
-        localStorage.setItem('HELPDESK:account_admin', JSON.stringify(data));
-        setLogged(true)
-        Authentication()
-      } else {
-        alert('Username atau Password salah!')
-        setLogged(false)
+      const dataRoom = responseRoom.data;
+
+      let dataHelpdeskRoom = {
+        name: dataRoom.name,
+        token: dataRoom.token,
+        type: dataRoom.type,
+        secret: dataRoom.secret,
       }
+
+      let dataHelpdeskAccount = {
+        name: dataUser.name,
+        uuid: dataUser.uuid,
+        role: dataUser.role
+      }
+
+      localStorage.setItem('HELPDESK:room_admin', JSON.stringify(dataHelpdeskRoom));
+      localStorage.setItem('HELPDESK:account_admin', JSON.stringify(dataHelpdeskAccount));
+      setLogged(true);
+      Authentication();
     } catch (err) {
       console.log(err);
+      alert(err.response.data.message);
     }
   }
 
@@ -264,7 +253,7 @@ const Admin = () => {
             <nav className='flex items-center justify-between w-full max-w-lg bg-white mx-auto p-5'>
               <div className='flex items-end gap-2'>
                 <i className="fi fi-rr-user-headset text-xl"></i>
-                <h1 className='font-bold text-xl'>Admin Chat {activeRoom.name}</h1>
+                <h1 className='font-bold text-xl'>Admin Help Chat {activeRoom.name}</h1>
               </div>
               <div className='flex items-center gap-5'>
                 <button onClick={bellPlay} type='button' className='text-sky-700 hover:text-sky-800'>
@@ -426,8 +415,9 @@ const Admin = () => {
                 <span>{`${connection ? 'Connected' : 'Disconnected'}`}</span>
               </p>
               <form onSubmit={loginFunc} className='flex flex-col items-center gap-2'>
-                <input type="text" id='username' value={username} onChange={(e) => setUsername(e.target.value)} placeholder='Username' className='bg-sky-100 text-sky-900 text-sm rounded-xl block w-full px-4 py-2.5 border border-sky-800 focus:ring-sky-500 focus:border-sky-500' />
-                <input type="password" id='password' value={password} onChange={(e) => setPassword(e.target.value)} placeholder='Password' className='bg-sky-100 text-sky-900 text-sm rounded-xl block w-full px-4 py-2.5 border border-sky-800 focus:ring-sky-500 focus:border-sky-500' />
+                <input type="text" id='username' value={username} onChange={(e) => setUsername(e.target.value)} placeholder='Username' className='bg-sky-100 text-sky-900 text-sm rounded-xl block w-full px-4 py-2.5 border border-sky-800 focus:ring-sky-500 focus:border-sky-500' required />
+                <input type="password" id='password' value={password} onChange={(e) => setPassword(e.target.value)} placeholder='Password' className='bg-sky-100 text-sky-900 text-sm rounded-xl block w-full px-4 py-2.5 border border-sky-800 focus:ring-sky-500 focus:border-sky-500' required />
+                <input type="number" id='token' onChange={(e) => setToken(e.target.value)} placeholder='Token' className='bg-sky-100 text-sky-900 text-sm rounded-xl block w-full px-4 py-2.5 border border-sky-800 focus:ring-sky-500 focus:border-sky-500' required />
                 <button type="submit" className="w-full flex gap-2 items-center justify-center py-2.5 px-3 text-sm font-medium text-white bg-sky-600 rounded-xl hover:bg-sky-700 focus:ring-4 focus:outline-none focus:ring-blue-300">
                   <span>Sign In</span>
                 </button>

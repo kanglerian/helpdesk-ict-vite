@@ -20,45 +20,36 @@ const Students = () => {
   const [searchParams] = useSearchParams();
 
   const [client, setClient] = useState('');
-  const [activeRoom, setActiveRoom] = useState({
-    name: 'Utama',
-    token: 46150,
-    type: 0,
-    secret: 0,
-  });
-
+  const [activeRoom, setActiveRoom] = useState(null);
   const [enableRoom, setEnableRoom] = useState(false);
   const [logged, setLogged] = useState(false);
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('civitaslp3i');
+  const [password, setPassword] = useState('civitaslp3i123');
+  const [token, setToken] = useState('46150');
   const [message, setMessage] = useState('');
   const [canSendMessage, setCanSendMessage] = useState(true);
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
 
   const Authentication = () => {
-    const queryParams = searchParams.get("room");
-    const roomQueryParam = queryParams || 'anonymous';
+    const queryRoomParams = searchParams.get("room");
+    const queryTokenParams = searchParams.get("token");
+    const roomParams = queryRoomParams || 'anonymous';
+    const tokenParams = queryTokenParams || '46150';
     const room = localStorage.getItem('HELPDESK:room');
     const account = localStorage.getItem('HELPDESK:account');
-    setClient(roomQueryParam)
+    setClient(roomParams)
+    setToken(tokenParams)
     if (account) {
       if (!room) {
-        let roomActive = {
-          name: "Utama",
-          token: 46150,
-          type: 0,
-          secret: 0,
-        }
-        localStorage.setItem('HELPDESK:room', JSON.stringify(roomActive));
-        setActiveRoom(roomActive);
-        getChats(roomActive, roomQueryParam);
-        getRooms();
-        setLogged(true)
+        localStorage.removeItem('HELPDESK:room');
+        localStorage.removeItem('HELPDESK:account');
+        setLogged(false);
+        navigate('/')
       } else {
         const roomStorage = localStorage.getItem('HELPDESK:room');
         const roomActive = JSON.parse(roomStorage);
-        getChats(roomActive, roomQueryParam);
+        getChats(roomActive, roomParams);
         setActiveRoom(roomActive);
         getRooms();
         setLogged(true)
@@ -67,7 +58,7 @@ const Students = () => {
   }
 
   const getRooms = async () => {
-    await axios.get('http://localhost:3001/rooms')
+    await axios.get('http://localhost:3000/rooms')
       .then((response) => {
         setRooms(response.data);
       })
@@ -76,16 +67,11 @@ const Students = () => {
       })
   }
 
-  const getChats = async (roomActive, roomQueryParam) => {
-    await axios.get('http://localhost:3001/chats')
+  const getChats = async (roomActive, roomParams) => {
+    await axios.get(`http://localhost:3000/chats/student/${roomActive.token}/${roomParams}`)
       .then((response) => {
         const responseChat = response.data;
-        const resultFilter = responseChat.filter(
-          (chat) =>
-            chat.token == roomActive.token &&
-            (chat.reply == roomQueryParam || chat.client == roomQueryParam)
-        );
-        setChats(resultFilter);
+        setChats(responseChat);
       })
       .catch((error) => {
         console.log(error);
@@ -123,8 +109,8 @@ const Students = () => {
       let data = {
         name: 'Custom',
         token: inputManual,
-        type: 1,
-        secret: 0,
+        type: true,
+        secret: false,
       }
       localStorage.setItem('HELPDESK:room', JSON.stringify(data));
       Authentication();
@@ -137,8 +123,8 @@ const Students = () => {
       let data = {
         name: 'Secret',
         token: inputManual,
-        type: 1,
-        secret: 1,
+        type: true,
+        secret: true,
       }
       localStorage.setItem('HELPDESK:room', JSON.stringify(data));
       Authentication();
@@ -177,17 +163,11 @@ const Students = () => {
         longitude: longitude
       }
       setCanSendMessage(false);
-      await axios.post('http://localhost:3001/chats', dataChat)
-        .then((response) => {
-          socket.emit('message', response.data)
-          setMessage('');
-          setTimeout(() => {
-            setCanSendMessage(true);
-          }, 7000);
-        })
-        .catch((error) => {
-          console.log(error);
-        })
+      socket.emit('message', dataChat)
+      setMessage('');
+      setTimeout(() => {
+        setCanSendMessage(true);
+      }, 7000);
     }
   }
 
@@ -211,23 +191,34 @@ const Students = () => {
   const loginFunc = async (e) => {
     e.preventDefault();
     try {
-      const responseUser = await axios.get(`http://localhost:3001/users?username=${username}&password=${password}&role=S`)
+      const responseUser = await axios.post(`http://localhost:3000/auth/login`, {
+        username: username,
+        password: password
+      });
+      const responseRoom = await axios.get(`http://localhost:3000/rooms/${token}`)
       const dataUser = responseUser.data;
-      if (dataUser.length > 0) {
-        let data = {
-          name: dataUser[0].name,
-          uuid: dataUser[0].uuid,
-          role: dataUser[0].role
-        }
-        localStorage.setItem('HELPDESK:account', JSON.stringify(data));
-        setLogged(true)
-        Authentication()
-      } else {
-        alert('Username atau Password salah!')
-        setLogged(false)
+      const dataRoom = responseRoom.data;
+
+      let dataHelpdeskRoom = {
+        name: dataRoom.name,
+        token: dataRoom.token,
+        type: dataRoom.type,
+        secret: dataRoom.secret,
       }
+
+      let dataHelpdeskAccount = {
+        name: dataUser.name,
+        uuid: dataUser.uuid,
+        role: dataUser.role
+      }
+
+      localStorage.setItem('HELPDESK:room', JSON.stringify(dataHelpdeskRoom));
+      localStorage.setItem('HELPDESK:account', JSON.stringify(dataHelpdeskAccount));
+      setLogged(true);
+      Authentication();
     } catch (err) {
       console.log(err);
+      alert(err.response.data.message)
     }
   }
 
@@ -250,12 +241,12 @@ const Students = () => {
     }
 
     function onMessage(message) {
-      const queryParams = searchParams.get("room");
-      const roomQueryParam = queryParams || 'anonymous';
+      const queryRoomParams = searchParams.get("room");
+      const roomParams = queryRoomParams || 'anonymous';
       const roomStringify = localStorage.getItem('HELPDESK:room');
       if (roomStringify) {
         const roomParse = JSON.parse(roomStringify);
-        if (message.token == roomParse.token && (message.reply == roomQueryParam || message.client == roomQueryParam)) {
+        if (message.token == roomParse.token && (message.reply == roomParams || message.client == roomParams)) {
           setChats(prevChat => [...prevChat, message]);
           setTimeout(() => {
             scrollToRef();
@@ -270,10 +261,10 @@ const Students = () => {
                   message: "Informasi sudah diterima, mohon ditunggu ya!",
                   name_room: message.name_room,
                   name_sender: 'Help BOT',
-                  reply: roomQueryParam,
+                  reply: roomParams,
                   role_sender: 'A',
                   token: message.token,
-                  uuid_sender: '0019238908'
+                  uuid_sender: '0194818245'
                 }
                 setChats(prevChat => [...prevChat, autoreply]);
                 setTimeout(() => {
@@ -306,7 +297,7 @@ const Students = () => {
             <nav className='flex items-center justify-between w-full max-w-lg bg-white mx-auto p-5'>
               <div className='flex items-end gap-2'>
                 <i className="fi fi-rr-user-headset text-xl"></i>
-                <h1 className='font-bold text-xl'>Chat {activeRoom.name}: {client}</h1>
+                <h1 className='font-bold text-xl'>Help Chat {activeRoom.name}: {client}</h1>
               </div>
               <div className='flex items-center gap-5'>
                 <button onClick={removeToken} type='button' className='text-sky-700 hover:text-sky-800'>
@@ -441,8 +432,9 @@ const Students = () => {
                 <span>{`${connection ? 'Connected' : 'Disconnected'}`}</span>
               </p>
               <form onSubmit={loginFunc} className='flex flex-col items-center gap-2'>
-                <input type="text" id='username' value={username} onChange={(e) => setUsername(e.target.value)} placeholder='Username' className='bg-sky-100 text-sky-900 text-sm rounded-xl block w-full px-4 py-2.5 border border-sky-800 focus:ring-sky-500 focus:border-sky-500' />
-                <input type="password" id='password' value={password} onChange={(e) => setPassword(e.target.value)} placeholder='Password' className='bg-sky-100 text-sky-900 text-sm rounded-xl block w-full px-4 py-2.5 border border-sky-800 focus:ring-sky-500 focus:border-sky-500' />
+                <input type="text" id='username' value={username} onChange={(e) => setUsername(e.target.value)} placeholder='Username' className='bg-sky-100 text-sky-900 text-sm rounded-xl block w-full px-4 py-2.5 border border-sky-800 focus:ring-sky-500 focus:border-sky-500' required />
+                <input type="password" id='password' value={password} onChange={(e) => setPassword(e.target.value)} placeholder='Password' className='bg-sky-100 text-sky-900 text-sm rounded-xl block w-full px-4 py-2.5 border border-sky-800 focus:ring-sky-500 focus:border-sky-500' required />
+                <input type="number" id='token' value={token} onChange={(e) => setToken(e.target.value)} placeholder='Token' className='bg-sky-100 text-sky-900 text-sm rounded-xl block w-full px-4 py-2.5 border border-sky-800 focus:ring-sky-500 focus:border-sky-500' required />
                 <button type="submit" className="w-full flex gap-2 items-center justify-center py-2.5 px-3 text-sm font-medium text-white bg-sky-600 rounded-xl hover:bg-sky-700 focus:ring-4 focus:outline-none focus:ring-blue-300">
                   <span>Sign In</span>
                 </button>
