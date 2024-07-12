@@ -23,8 +23,8 @@ const Students = () => {
   const [activeRoom, setActiveRoom] = useState(null);
   const [enableRoom, setEnableRoom] = useState(false);
   const [logged, setLogged] = useState(false);
-  const [username, setUsername] = useState('civitaslp3i');
-  const [password, setPassword] = useState('civitaslp3i123');
+  const [username, setUsername] = useState('student');
+  const [password, setPassword] = useState('helpdeskstudent');
   const [token, setToken] = useState('46150');
   const [message, setMessage] = useState('');
   const [canSendMessage, setCanSendMessage] = useState(true);
