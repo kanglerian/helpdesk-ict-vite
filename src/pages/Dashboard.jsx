@@ -18,7 +18,9 @@ const Dashboard = () => {
   const [chats, setChats] = useState([]);
   const [connection, setConnection] = useState(false);
 
-  const [activeRoom, setActiveRoom] = useState(null);
+  const [activeRoom, setActiveRoom] = useState({
+    name: 'Loading...'
+  });
 
   const [enableRoom, setEnableRoom] = useState(false);
   const [logged, setLogged] = useState(false);
@@ -157,8 +159,8 @@ const Dashboard = () => {
         role: dataUser.role
       }
 
-      localStorage.setItem('HELPDESK:room_admin', JSON.stringify(dataHelpdeskRoom));
-      localStorage.setItem('HELPDESK:account_admin', JSON.stringify(dataHelpdeskAccount));
+      localStorage.setItem('HELPDESK:room_dashboard', JSON.stringify(dataHelpdeskRoom));
+      localStorage.setItem('HELPDESK:account_dashboard', JSON.stringify(dataHelpdeskAccount));
       setLogged(true);
       Authentication();
     } catch (err) {

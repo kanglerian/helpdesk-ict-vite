@@ -1,0 +1,16 @@
+version: "3.7"
+services:
+  web:
+    container_name: helpdesk_client_container
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    restart: unless-stopped
+    networks:
+      - helpdesk_network
+
+networks:
+  helpdesk_network:
+    driver: bridge
