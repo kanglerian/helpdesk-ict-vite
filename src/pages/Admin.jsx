@@ -60,6 +60,20 @@ const Admin = () => {
       })
   }
 
+  const clearChats = async () => {
+    const confirmed = confirm(`Apakah anda yakin akan menghapus pesan ${activeRoom.name}?`);
+    if(confirmed){
+      await axios.delete(`http://localhost:3000/chats/${activeRoom.token}`)
+      .then((response) => {
+        alert(response.data.message);
+        getChats(activeRoom);
+      })
+      .catch((error) => {
+        console.log(error);
+      })
+    }
+  }
+
   const getChats = async (roomActive) => {
     await axios.get(`http://localhost:3000/chats/admin/${roomActive.token}`)
       .then((response) => {
@@ -146,7 +160,7 @@ const Admin = () => {
       setMessage('');
       setTimeout(() => {
         setCanSendMessage(true);
-      }, 7000);
+      }, 2000);
     }
   }
 
@@ -256,6 +270,9 @@ const Admin = () => {
                 <h1 className='font-bold text-xl'>Admin Help Chat {activeRoom.name}</h1>
               </div>
               <div className='flex items-center gap-5'>
+                <button onClick={clearChats} type='button' className='text-red-700 hover:text-red-800'>
+                  <i className="fi fi-rr-trash"></i>
+                </button>
                 <button onClick={bellPlay} type='button' className='text-sky-700 hover:text-sky-800'>
                   <i className="fi fi-rr-bell-ring"></i>
                 </button>
