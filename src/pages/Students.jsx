@@ -58,7 +58,7 @@ const Students = () => {
   }
 
   const getRooms = async () => {
-    await axios.get('http://localhost:3000/rooms')
+    await axios.get('https://api.politekniklp3i-tasikmalaya.ac.id/helpdesk/rooms')
       .then((response) => {
         setRooms(response.data);
       })
@@ -68,7 +68,7 @@ const Students = () => {
   }
 
   const getChats = async (roomActive, roomParams) => {
-    await axios.get(`http://localhost:3000/chats/student/${roomActive.token}/${roomParams}`)
+    await axios.get(`https://api.politekniklp3i-tasikmalaya.ac.id/helpdesk/chats/student/${roomActive.token}/${roomParams}`)
       .then((response) => {
         const responseChat = response.data;
         setChats(responseChat);
@@ -191,11 +191,11 @@ const Students = () => {
   const loginFunc = async (e) => {
     e.preventDefault();
     try {
-      const responseUser = await axios.post(`http://localhost:3000/auth/login`, {
+      const responseUser = await axios.post(`https://api.politekniklp3i-tasikmalaya.ac.id/helpdesk/auth/login`, {
         username: username,
         password: password
       });
-      const responseRoom = await axios.get(`http://localhost:3000/rooms/${token}`)
+      const responseRoom = await axios.get(`https://api.politekniklp3i-tasikmalaya.ac.id/helpdesk/rooms/${token}`)
       const dataUser = responseUser.data;
       const dataRoom = responseRoom.data;
 

@@ -51,7 +51,7 @@ const Admin = () => {
   }
 
   const getRooms = async () => {
-    await axios.get('http://localhost:3000/rooms')
+    await axios.get('https://api.politekniklp3i-tasikmalaya.ac.id/helpdesk/rooms')
       .then((response) => {
         setRooms(response.data);
       })
@@ -63,7 +63,7 @@ const Admin = () => {
   const clearChats = async () => {
     const confirmed = confirm(`Apakah anda yakin akan menghapus pesan ${activeRoom.name}?`);
     if(confirmed){
-      await axios.delete(`http://localhost:3000/chats/${activeRoom.token}`)
+      await axios.delete(`https://api.politekniklp3i-tasikmalaya.ac.id/helpdesk/chats/${activeRoom.token}`)
       .then((response) => {
         alert(response.data.message);
         getChats(activeRoom);
@@ -75,7 +75,7 @@ const Admin = () => {
   }
 
   const getChats = async (roomActive) => {
-    await axios.get(`http://localhost:3000/chats/admin/${roomActive.token}`)
+    await axios.get(`https://api.politekniklp3i-tasikmalaya.ac.id/helpdesk/chats/admin/${roomActive.token}`)
       .then((response) => {
         const responseChat = response.data;
         setChats(responseChat);
@@ -184,11 +184,11 @@ const Admin = () => {
   const loginFunc = async (e) => {
     e.preventDefault();
     try {
-      const responseUser = await axios.post(`http://localhost:3000/auth/admin/login`, {
+      const responseUser = await axios.post(`https://api.politekniklp3i-tasikmalaya.ac.id/helpdesk/auth/admin/login`, {
         username: username,
         password: password
       });
-      const responseRoom = await axios.get(`http://localhost:3000/rooms/${token}`)
+      const responseRoom = await axios.get(`https://api.politekniklp3i-tasikmalaya.ac.id/helpdesk/rooms/${token}`)
       const dataUser = responseUser.data;
       const dataRoom = responseRoom.data;
 
@@ -276,7 +276,7 @@ const Admin = () => {
                 <button onClick={bellPlay} type='button' className='text-sky-700 hover:text-sky-800'>
                   <i className="fi fi-rr-bell-ring"></i>
                 </button>
-                <a href={`http://localhost:3000/chats/download/${activeRoom.token}`} target='_blank' className='text-sky-700 hover:text-sky-800'>
+                <a href={`https://api.politekniklp3i-tasikmalaya.ac.id/helpdesk/chats/download/${activeRoom.token}`} target='_blank' className='text-sky-700 hover:text-sky-800'>
                   <i className="fi fi-rr-download"></i>
                 </a>
                 <button onClick={removeToken} type='button' className='text-sky-700 hover:text-sky-800'>

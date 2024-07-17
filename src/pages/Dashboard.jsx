@@ -49,7 +49,7 @@ const Dashboard = () => {
   }
 
   const getRooms = async () => {
-    await axios.get('http://localhost:3000/rooms')
+    await axios.get('https://api.politekniklp3i-tasikmalaya.ac.id/helpdesk/rooms')
       .then((response) => {
         setRooms(response.data);
       })
@@ -59,7 +59,7 @@ const Dashboard = () => {
   }
 
   const getChats = async (roomActive) => {
-    await axios.get(`http://localhost:3000/chats/dashboard/${roomActive.token}`)
+    await axios.get(`https://api.politekniklp3i-tasikmalaya.ac.id/helpdesk/chats/dashboard/${roomActive.token}`)
       .then((response) => {
         const responseChat = response.data;
         setChats(responseChat);
@@ -138,11 +138,11 @@ const Dashboard = () => {
   const loginFunc = async (e) => {
     e.preventDefault();
     try {
-      const responseUser = await axios.post(`http://localhost:3000/auth/admin/login`, {
+      const responseUser = await axios.post(`https://api.politekniklp3i-tasikmalaya.ac.id/helpdesk/auth/admin/login`, {
         username: username,
         password: password
       });
-      const responseRoom = await axios.get(`http://localhost:3000/rooms/${token}`)
+      const responseRoom = await axios.get(`https://api.politekniklp3i-tasikmalaya.ac.id/helpdesk/rooms/${token}`)
       const dataUser = responseUser.data;
       const dataRoom = responseRoom.data;
 
