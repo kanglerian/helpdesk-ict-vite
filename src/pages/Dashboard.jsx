@@ -291,7 +291,7 @@ const Dashboard = () => {
               </div>
             </section>
             <footer className={`flex flex-col md:flex-row items-center justify-between gap-5 md:gap-0 w-full mx-auto ${connection ? 'bg-emerald-500' : 'bg-red-500'} p-5`}>
-              <a href='https://kanglerian.github.io' target='_blank' className='order-2 md:order-1 block text-center text-xs text-slate-800 hover:text-slate-900'>Copyright © 2024 Lerian Febriana, A.Md.Kom</a>
+              <a href='https://politekniklp3i-tasikmalaya.ac.id' target='_blank' className='order-2 md:order-1 block text-center text-xs text-slate-800 hover:text-slate-900'>Copyright © 2024 Politeknik LP3I Kampus Tasikmalaya</a>
               <div className='order-1 md:order-2 flex items-center gap-5'>
                 <div className='flex items-center gap-2 text-slate-800'>
                   <i className="fi fi-rr-user-headset text-xl flex"></i>
@@ -333,7 +333,7 @@ const Dashboard = () => {
                   <span>Sign In</span>
                 </button>
               </form>
-              <a href="https://kanglerian.github.io" target="_blank" className='block text-xs text-sky-400'>Copyright © 2024 Politeknik LP3I Kampus Tasikmalaya</a>
+              <a href="https://politekniklp3i-tasikmalaya.ac.id" target="_blank" className='block text-xs text-sky-400'>Copyright © 2024 Politeknik LP3I Kampus Tasikmalaya</a>
             </div>
           </section>
         )

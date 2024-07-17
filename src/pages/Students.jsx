@@ -416,7 +416,7 @@ const Students = () => {
               </div>
             </div>
             <footer className='w-full max-w-lg mx-auto bg-white py-2'>
-              <a href='https://kanglerian.github.io' target='_blank' className='block text-center text-[10px] text-gray-600'>Copyright © 2024 Lerian Febriana, A.Md.Kom</a>
+              <a href='https://politekniklp3i-tasikmalaya.ac.id' target='_blank' className='block text-center text-[11px] font-medium text-gray-600'>Copyright © 2024 Politeknik LP3I Kampus Tasikmalaya</a>
             </footer>
           </section>
         ) : (
@@ -439,7 +439,7 @@ const Students = () => {
                   <span>Sign In</span>
                 </button>
               </form>
-              <a href='https://kanglerian.github.io' target='_blank' className='block text-xs text-sky-400'>Copyright © 2024 Lerian Febriana, A.Md.Kom</a>
+              <a href='https://politekniklp3i-tasikmalaya.ac.id' target='_blank' className='block text-xs text-sky-400'>Copyright © 2024 Politeknik LP3I Kampus Tasikmalaya</a>
             </div>
           </section>
         )

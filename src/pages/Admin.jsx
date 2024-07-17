@@ -267,7 +267,7 @@ const Admin = () => {
             <nav className='flex items-center justify-between w-full max-w-lg bg-white mx-auto p-5'>
               <div className='flex items-end gap-2'>
                 <i className="fi fi-rr-user-headset text-xl"></i>
-                <h1 className='font-bold text-xl'>Admin Help Chat {activeRoom.name}</h1>
+                <h1 className='font-bold text-xl'>Admin Chat: {activeRoom.name}</h1>
               </div>
               <div className='flex items-center gap-5'>
                 <button onClick={clearChats} type='button' className='text-red-700 hover:text-red-800'>
@@ -276,6 +276,9 @@ const Admin = () => {
                 <button onClick={bellPlay} type='button' className='text-sky-700 hover:text-sky-800'>
                   <i className="fi fi-rr-bell-ring"></i>
                 </button>
+                <a href={`http://localhost:3000/chats/download/${activeRoom.token}`} target='_blank' className='text-sky-700 hover:text-sky-800'>
+                  <i className="fi fi-rr-download"></i>
+                </a>
                 <button onClick={removeToken} type='button' className='text-sky-700 hover:text-sky-800'>
                   <i className="fi fi-rr-key"></i>
                 </button>
@@ -344,7 +347,7 @@ const Admin = () => {
                           <div className="space-y-5">
                             <div className='space-y-2'>
                               <div className="flex items-center gap-1 text-[11px] text-sky-200">
-                                <i className="fi fi-rr-arrow-turn-down-right flex text-[10px]"></i>
+                                <i className="fi fi-rr-arrow-turn-down-right flex text-sm"></i>
                                 <span>Reply for {chat.reply}</span>
                               </div>
                               <p className="text-sm text-white">{chat.message}</p>
@@ -364,7 +367,7 @@ const Admin = () => {
                               <p className="text-sm text-gray-700">{chat.message}</p>
                             </div>
                             <div className='flex items-center justify-between'>
-                              <a target='_blank' href={`https://google.com/maps?q=${chat.latitude},${chat.longitude}`} className="text-gray-500 hover:text-gray-600 flex items-center gap-1">
+                              <a target='_blank' href={`https://google.com/maps?q=${chat.latitude},${chat.longitude}`} className="text-gray-500 hover:text-gray-600 hover:underline flex items-center gap-1">
                                 <span className="block text-xs"><i className="fi fi-rr-marker flex"></i></span>
                                 <span className="block text-xs">{moment(chat.date).tz('Asia/Jakarta').format('LLLL')}</span>
                               </a>
@@ -416,7 +419,7 @@ const Admin = () => {
               </div>
             </div>
             <footer className='w-full max-w-lg mx-auto bg-white py-2'>
-              <a href='https://kanglerian.github.io' target='_blank' className='block text-center text-[10px] text-gray-600'>Copyright © 2024 Lerian Febriana, A.Md.Kom</a>
+              <a href='https://politekniklp3i-tasikmalaya.ac.id' target='_blank' className='block text-center text-[11px] font-medium text-gray-600'>Copyright © 2024 Politeknik LP3I Kampus Tasikmalaya</a>
             </footer>
           </section>
         ) : (
@@ -439,7 +442,7 @@ const Admin = () => {
                   <span>Sign In</span>
                 </button>
               </form>
-              <a href='https://kanglerian.github.io' target='_blank' className='block text-xs text-sky-400'>Copyright © 2024 Lerian Febriana, A.Md.Kom</a>
+              <a href='https://politekniklp3i-tasikmalaya.ac.id' target='_blank' className='block text-xs text-sky-400'>Copyright © 2024 Politeknik LP3I Kampus Tasikmalaya</a>
             </div>
           </section>
         )
