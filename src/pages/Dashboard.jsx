@@ -65,7 +65,9 @@ const Dashboard = () => {
         setChats(responseChat);
       })
       .catch((error) => {
-        console.log(error);
+        if(error.response.status == 404){
+          setChats([]);
+        }
       })
   }
 
